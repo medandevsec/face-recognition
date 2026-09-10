@@ -45,6 +45,21 @@ extracts the card holder's face, and registers it under the holder's **NIK**
 (validated as exactly 16 digits). The card's face area is preferred; if the
 cascade detects nothing there it falls back to the largest face on the card.
 
+### Auto-read NIK / name with OCR (optional)
+
+If Tesseract is installed, `--ocr` reads the NIK (and best-effort name) straight
+from the KTP photo so you don't have to type it:
+
+```
+python ktp_register.py --ocr ktp_scan.jpg
+```
+
+`python ktp_ocr.py ktp_scan.jpg` prints the raw extracted fields for inspection.
+Tesseract is detected automatically on Windows/Linux; override with
+`--tesseract-cmd` / `--tessdata-dir`. Indonesian (`ind`) is used when the
+traineddata file is available, otherwise English. NIK digits are re-OCR'd with a
+digits-only whitelist for reliability — the 16-digit NIK is the critical field.
+
 ## Verify live against a registered NIK (1:1)
 
 ```
@@ -53,10 +68,13 @@ python verify.py 3273011501900001 --source cam.mp4
 python verify.py 3273011501900001 --source photo.jpg   # static image, liveness will fail
 ```
 
-The identity must keep matching the registered NIK for ~2s **while some facial
-movement is detected** (nose-tracking), so a printed photo of a KTP cannot pass.
-Tune strictness with `--threshold` (default 0.45). Options: `--no-show` for
-headless runs, press `q` to quit.
+The identity must keep matching the registered NIK for ~3 s **while a blink is
+detected** (eye-area brightness impulse while the face is steady), so a printed
+photo of a KTP cannot pass. For cameras with poor eyelid detail, `--motion-only`
+falls back to nose-tracking movement instead. Natural blinks don't break the
+streak — brief interruptions only decay it, while a clearly different person
+hard-resets it. Tune strictness with `--threshold` (default 0.45). Options:
+`--no-show` for headless runs, press `q` to quit.
 
 ## Reuse for a new client
 
@@ -83,3 +101,17 @@ the repo out to a new client.
   pipeline, and need only a few MB of ONNX models downloaded once.
 - Multi-sample registrations store the L2-normalized mean embedding, so adding
   more photos never biases the similarity score.
+- Blink liveness is a heuristic (eye-area brightness impulse while the face is
+  steady); on hardware where YuNet can't track the eyes it may need
+  `--motion-only`. Liveness checks defend against still photos, not 3D masks.
+
+## Tests
+
+```
+pip install pytest tesseract-ocr   # tesseract-ocr optional, OCR tests skip if missing
+python -m pytest
+```
+
+The suite covers detector/embedder math, KTP dewarp + face extraction, register-
+and-verify flows (blink liveness, motion-only, impostor rejection), and OCR NIK
+parsing. CI runs it on Ubuntu via `.github/workflows/ci.yml`.
