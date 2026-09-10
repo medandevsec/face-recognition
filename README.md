@@ -34,6 +34,73 @@ python main.py --source video.mp4 --output result.mp4
 Known face = name + cyan box + jarvis dots + match %. Unknown = red box.
 Press `q` to quit (webcam/video mode).
 
+## Alur end-to-end
+
+```mermaid
+flowchart TD
+    subgraph SETUP["Setup (sekali)"]
+        M[python setup_models.py] --> MR[(models/ YuNet + SFace .onnx)]
+    end
+
+    subgraph REG["Registrasi dari KTP (ktp_register.py)"]
+        A[Foto / scan KTP] --> D[Deteksi sudut kartu + dewarp perspektif]
+        D --> E[Extract daerah wajah pemegang kartu]
+        A -.opsional.- O[ktp_ocr.py: OCR NIK 16 digit + nama]
+        O --> N{valid? 16 digit}
+        N -- ya --> E
+        N -- tidak --> X1[Tolak registrasi]
+        E --> F[YuNet: deteksi wajah]
+        F --> G[alignCrop + embed SFace]
+        G --> I[mean_embedding semua sampel NIK]
+        I --> ST[(data/faces/&lt;NIK&gt;/*.jpg<br/>data/embeddings.json)]
+    end
+
+    subgraph VER["Verifikasi 1:1 (verify.py)"]
+        V[Kamera / video / foto] --> VF[YuNet detect per frame]
+        VF --> VA[align + embed SFace]
+        VA --> VC{cosine sim >= threshold?}
+        VC -- ya --> VS[streak match bertambah]
+        VC -- tidak --> VD[streak decay<br/>hard reset bila sim jauh / gap panjang]
+        VS --> L{Liveness}
+        L -- default --> LB{ada blink<br/>(impuls kecerahan area mata)}
+        L -- "--motion-only" --> LM{pergerakan hidung cukup?}
+        LB -- ya --> S{streak >= ~3 detik?}
+        LM -- ya --> S
+        S -- ya --> PASS([VERIFIED OK])
+        S -- tidak --> VF
+        LB -- tidak --> VF
+        ST -. target NIK .-> VC
+        MR -. model .-> VF
+    end
+```
+
+Versi ASCII ringkas untuk dibaca cepat:
+
+```
+  Setup:   setup_models.py ──► models/*.onnx (YuNet + SFace)
+                    │
+                    ▼
+  Registrasi: KTP foto ──► dewarp ──► ambil wajah ──► YuNet ──► SFace embed
+                    │                                        │
+                    ├─ opsional ktp_ocr.py (--ocr)           │
+                    │        └─► NIK 16 digit + nama         │
+                    ▼                                        ▼
+              data/embeddings.json ◄── mean_embedding ◄── data/faces/<NIK>/
+                    │
+                    ▼
+  Verifikasi: kamera/video/foto ──► YuNet ──► SFace ──► cosine vs NIK target
+                    │                                    │
+                    │                         cocok ─────► streak bertambah
+                    │                         tidak ─────► streak decay / reset
+                    │                                    │
+                    ▼                                    ▼
+              liveness: blink (default) ──► butuh blink >= 1
+                        --motion-only ────► butuh gerak cukup
+                    │
+                    ▼
+              streak >= ~3 detik ──► VERIFIED OK
+```
+
 ## Register from an Indonesian ID card (KTP)
 
 ```
@@ -108,7 +175,8 @@ the repo out to a new client.
 ## Tests
 
 ```
-pip install pytest tesseract-ocr   # tesseract-ocr optional, OCR tests skip if missing
+pip install -r requirements.txt pytest pytesseract
+# apt/dnf/winget install tesseract-ocr   # optional — OCR tests skip if missing
 python -m pytest
 ```
 

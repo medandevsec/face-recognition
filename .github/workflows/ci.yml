@@ -21,7 +21,7 @@ jobs:
           sudo apt-get install -y libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-ind
 
       - name: Install python deps
-        run: pip install -r requirements.txt pytest
+        run: pip install -r requirements.txt pytest pytesseract
 
       - name: Download ONNX models
         run: python setup_models.py

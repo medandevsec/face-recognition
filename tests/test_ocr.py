@@ -1,5 +1,4 @@
 import os
-import shutil
 
 import cv2
 import numpy as np
@@ -7,9 +6,15 @@ import pytest
 
 from core.ktp_ocr import extract_fields, extract_nik, extract_text, find_tessdata, find_tesseract
 
+try:
+    import pytesseract  # noqa: F401
+    _has_pytesseract = True
+except ImportError:
+    _has_pytesseract = False
+
 TESS = os.environ.get("KTP_OCR_TESSERACT") or find_tesseract()
 TESSDATA = find_tessdata(TESS) if TESS else None
-has_tesseract = TESS is not None
+has_tesseract = TESS is not None and _has_pytesseract
 
 pytestmark = pytest.mark.skipif(not has_tesseract, reason="Tesseract not installed")
 

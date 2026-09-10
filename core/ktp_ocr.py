@@ -54,7 +54,7 @@ def preprocess(image):
     return gray
 
 
-def _apply_tessdata_env(tessdata_dir, tesseract_cmd):
+def _apply_tessdata_env(tessdata_dir):
     if tessdata_dir:
         os.environ["TESSDATA_PREFIX"] = tessdata_dir
 
@@ -67,7 +67,7 @@ def extract_text(image, tesseract_cmd=None, tessdata_dir=None, lang=None, psm=6)
     if not tesseract_cmd:
         raise RuntimeError("Tesseract not found; install it and pass --tesseract-cmd")
     pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-    _apply_tessdata_env(tessdata_dir, tesseract_cmd)
+    _apply_tessdata_env(tessdata_dir)
     if lang is None:
         langs = available_langs(tessdata_dir or find_tessdata(tesseract_cmd))
         lang = "ind" if "ind" in langs else "eng"
@@ -95,7 +95,7 @@ def ocr_nik_from_image(image, tesseract_cmd=None, tessdata_dir=None, lang=None):
     if not tesseract_cmd:
         return extract_nik(extract_text(image, lang=lang))
     pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
-    _apply_tessdata_env(tessdata_dir, tesseract_cmd)
+    _apply_tessdata_env(tessdata_dir)
     if lang is None:
         langs = available_langs(tessdata_dir or find_tessdata(tesseract_cmd))
         lang = "ind" if "ind" in langs else "eng"
