@@ -28,6 +28,17 @@ def embed(aligned):
     norm = np.linalg.norm(feature)
     return feature / norm if norm > 0 else feature
 
+def mean_embedding(person_dir):
+    vectors = []
+    for fname in sorted(os.listdir(person_dir)):
+        crop = cv2.imread(os.path.join(person_dir, fname))
+        if crop is None:
+            continue
+        vectors.append(embed(crop))
+    if not vectors:
+        return None
+    return np.mean(np.array(vectors), axis=0)
+
 def load_embeddings():
     if not os.path.exists(EMBEDDINGS_PATH):
         return {}

@@ -1,20 +1,8 @@
 import cv2
 import sys
 import os
-import numpy as np
 from core.detector import detect_faces
-from core.embedder import align_face, embed, load_embeddings, save_embeddings, FACES_DIR
-
-def mean_embedding(person_dir):
-    vectors = []
-    for fname in sorted(os.listdir(person_dir)):
-        crop = cv2.imread(os.path.join(person_dir, fname))
-        if crop is None:
-            continue
-        vectors.append(embed(crop))
-    if not vectors:
-        return None
-    return np.mean(np.array(vectors), axis=0)
+from core.embedder import align_face, embed, mean_embedding, load_embeddings, save_embeddings, FACES_DIR
 
 def register(name, image_path):
     img = cv2.imread(image_path)
