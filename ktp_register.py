@@ -2,7 +2,6 @@ import cv2
 import os
 import re
 import sys
-import numpy as np
 from core.embedder import align_face, mean_embedding, load_embeddings, save_embeddings, FACES_DIR
 from core.ktp import dewarp_card, extract_face_region
 

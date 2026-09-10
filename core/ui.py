@@ -3,6 +3,13 @@ import cv2
 CYAN = (255, 255, 0)
 YELLOW = (0, 255, 255)
 
+def padded_box(x, y, w, h, height, width):
+    pad_x, pad_top, pad_bottom = int(w * 0.12), int(h * 0.30), int(h * 0.12)
+    bx, by = max(0, x - pad_x), max(0, y - pad_top)
+    bw = min(width - bx, w + pad_x * 2)
+    bh = min(height - by, h + pad_top + pad_bottom)
+    return bx, by, bw, bh
+
 def draw_box(frame, x, y, w, h, name, confidence):
     color = CYAN if name != "Unknown" else (0, 0, 255)
     cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)

@@ -76,7 +76,10 @@ the repo out to a new client.
 ## Notes
 
 - `COSINE_THRESHOLD` in main.py (0.5) = strictness. Similarity is a cosine
-  score in 0..1 — higher threshold = stricter match.
+  score in 0..1 — higher threshold = stricter match. Pass `--threshold 0.7`
+  on the CLI (main.py and verify.py) instead of editing code.
 - Accuracy improves a lot with 3-5 photos per person vs just 1.
 - YuNet + SFace handle odd angles and low light far better than a Haar/LBPH
   pipeline, and need only a few MB of ONNX models downloaded once.
+- Multi-sample registrations store the L2-normalized mean embedding, so adding
+  more photos never biases the similarity score.

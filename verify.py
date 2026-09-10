@@ -7,7 +7,7 @@ import cv2
 
 from core.detector import detect_faces
 from core.embedder import align_face, embed, load_embeddings, cosine_similarity
-from core.ui import draw_box, draw_corners, draw_mesh
+from core.ui import draw_box, draw_corners, draw_mesh, padded_box
 
 MATCH_THRESHOLD = 0.45
 LIVENESS_MIN_TRAVEL = 25.0   # cumulative nose movement (px) to count as live
@@ -70,10 +70,8 @@ class Verifier:
 def draw(frame, verifier, face, sim, matched, status):
     if face is not None:
         x, y, w, h = [int(v) for v in face[:4]]
-        pad_x, pad_top, pad_bottom = int(w * 0.12), int(h * 0.30), int(h * 0.12)
-        bx, by = max(0, x - pad_x), max(0, y - pad_top)
-        bw, bh = min(frame.shape[1] - bx, w + pad_x * 2), min(frame.shape[0] - by, h + pad_top + pad_bottom)
-        label = f"MATCH {sim*100:.0f}%" if matched else "UNKNOWN"
+        bx, by, bw, bh = padded_box(x, y, w, h, frame.shape[0], frame.shape[1])
+        label = f"MATCH {sim*100:.0f}%" if matched else "Unknown"
         draw_mesh(frame, bx, by, bw, bh)
         draw_corners(frame, bx, by, bw, bh)
         draw_box(frame, bx, by, bw, bh, label, sim * 100 if matched else 0.0)
@@ -128,8 +126,8 @@ def main():
         print(summarize(verifier))
         return
 
-    if ext in VIDEO_EXT or source == "0":
-        cap = cv2.VideoCapture(int(source) if source == "0" else source)
+    if ext in VIDEO_EXT or source.isdigit():
+        cap = cv2.VideoCapture(int(source) if source.isdigit() else source)
         if not cap.isOpened():
             print("cannot open source")
             return

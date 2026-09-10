@@ -4,22 +4,22 @@ import os
 import time
 from core.detector import detect_faces
 from core.embedder import align_face, embed, load_embeddings, cosine_similarity
-from core.ui import draw_box, draw_corners, draw_mesh, draw_hud
+from core.ui import draw_box, draw_corners, draw_mesh, draw_hud, padded_box
 
 COSINE_THRESHOLD = 0.5  # higher = stricter match (cosine similarity, 0..1)
 WINDOW_NAME = "Face Recognition"
 
-def recognize(face_vec, embeddings):
+def recognize(face_vec, embeddings, threshold):
     best_name, best_sim = "Unknown", 0.0
     for name, meta in embeddings.items():
         sim = cosine_similarity(face_vec, meta["embedding"])
         if sim > best_sim:
             best_sim, best_name = sim, name
-    if best_sim >= COSINE_THRESHOLD:
+    if best_sim >= threshold:
         return best_name, best_sim * 100
     return "Unknown", 0.0
 
-def process_frame(frame, embeddings):
+def process_frame(frame, embeddings, threshold=COSINE_THRESHOLD):
     faces = detect_faces(frame)
     face_count = 0 if faces is None else len(faces)
     if faces is None:
@@ -27,16 +27,12 @@ def process_frame(frame, embeddings):
 
     for face in faces:
         x, y, w, h = [int(v) for v in face[:4]]
-        pad_x, pad_top, pad_bottom = int(w * 0.12), int(h * 0.30), int(h * 0.12)
-        bx = max(0, x - pad_x)
-        by = max(0, y - pad_top)
-        bw = min(frame.shape[1] - bx, w + pad_x * 2)
-        bh = min(frame.shape[0] - by, h + pad_top + pad_bottom)
+        bx, by, bw, bh = padded_box(x, y, w, h, frame.shape[0], frame.shape[1])
 
         name, match_pct = "Unknown", 0.0
         if embeddings:
             aligned = align_face(frame, face)
-            name, match_pct = recognize(embed(aligned), embeddings)
+            name, match_pct = recognize(embed(aligned), embeddings, threshold)
 
         draw_mesh(frame, bx, by, bw, bh)
         draw_corners(frame, bx, by, bw, bh)
@@ -44,9 +40,12 @@ def process_frame(frame, embeddings):
 
     return frame, face_count
 
-def run_image(path, embeddings, output):
+def run_image(path, embeddings, threshold, output):
     frame = cv2.imread(path)
-    frame, _ = process_frame(frame, embeddings)
+    if frame is None:
+        print("could not read image")
+        return
+    frame, _ = process_frame(frame, embeddings, threshold)
     out_path = output or "output.jpg"
     cv2.imwrite(out_path, frame)
     print(f"saved to {out_path}")
@@ -55,8 +54,11 @@ def run_image(path, embeddings, output):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def run_video(source, embeddings, output):
+def run_video(source, embeddings, threshold, output):
     cam = cv2.VideoCapture(source)
+    if not cam.isOpened():
+        print("cannot open source")
+        return
     writer = None
     if output:
         fps = cam.get(cv2.CAP_PROP_FPS) or 20
@@ -73,7 +75,7 @@ def run_video(source, embeddings, output):
         ok, frame = cam.read()
         if not ok:
             break
-        frame, face_count = process_frame(frame, embeddings)
+        frame, face_count = process_frame(frame, embeddings, threshold)
 
         now = time.time()
         fps = 1 / (now - prev_time) if now != prev_time else 0
@@ -96,6 +98,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", default="0", help="0 for webcam, or path to image/video file")
     parser.add_argument("--output", default=None, help="path to save result (image or video)")
+    parser.add_argument("--threshold", type=float, default=COSINE_THRESHOLD,
+                        help="cosine similarity threshold (0..1), higher = stricter")
     args = parser.parse_args()
 
     embeddings = load_embeddings()
@@ -106,11 +110,11 @@ def main():
     ext = os.path.splitext(source)[1].lower()
 
     if ext in (".jpg", ".jpeg", ".png", ".bmp"):
-        run_image(source, embeddings, args.output)
+        run_image(source, embeddings, args.threshold, args.output)
     elif ext in (".mp4", ".avi", ".mov", ".mkv"):
-        run_video(source, embeddings, args.output)
+        run_video(source, embeddings, args.threshold, args.output)
     else:
-        run_video(int(source), embeddings, args.output)
+        run_video(int(source), embeddings, args.threshold, args.output)
 
 if __name__ == "__main__":
     main()

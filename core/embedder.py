@@ -37,7 +37,9 @@ def mean_embedding(person_dir):
         vectors.append(embed(crop))
     if not vectors:
         return None
-    return np.mean(np.array(vectors), axis=0)
+    mean = np.mean(np.array(vectors), axis=0)
+    norm = np.linalg.norm(mean)
+    return mean / norm if norm > 0 else mean
 
 def load_embeddings():
     if not os.path.exists(EMBEDDINGS_PATH):
