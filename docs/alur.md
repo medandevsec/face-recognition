@@ -4,7 +4,7 @@
 
 ```
 pip install -r requirements.txt
-python setup_models.py          # unduh YuNet + SFace ke models/
+python setup_models.py          # unduh YuNet + AdaFace ke models/
 ```
 
 ## 2. Daftarkan wajah Anda
@@ -47,12 +47,12 @@ flowchart TD
     D --> E[KTP: ambil wajah pemegang kartu]
     E --> F[YuNet: deteksi wajah]
     C --> F
-    F --> G[alignCrop 112x112 + SFace embed<br/>= vektor 128-d]
+    F --> G[align 112x112 + AdaFace embed<br/>= vektor 512-d]
     G --> H[mean embedding per NIK / nama]
     H --> S[(data/embeddings.json<br/>+ data/faces/&lt;ID&gt;/*.jpg)]
     subgraph CAM["Kamera membaca wajah"]
         V[Webcam / video / foto] --> Y[YuNet per frame]
-        Y --> E2[alignCrop + SFace embed]
+        Y --> E2[align + AdaFace embed]
         E2 --> CO{cosine vs embedding target}
         CO -- "&ge;0.45" --> ST[streak bertambah]
         CO -- "&lt;0.45" --> DE[streak susut / hard reset]
@@ -70,7 +70,7 @@ Versi ASCII ringkas:
 ```
   DAFTAR FOTO Anda:
     ktp_register.py (+--ocr) ──► dewarp ──► ambil wajah ──┐
-    register_face.py <nama>   ────────────────────────────┴► YuNet ──► alignCrop ──► SFace embed(128d)
+    register_face.py <nama>   ────────────────────────────┴► YuNet ──► align ──► AdaFace embed(512d)
                                                                           │
                                                                           ▼
                                                         mean embedding ──► data/embeddings.json
@@ -80,3 +80,6 @@ Versi ASCII ringkas:
 ```
 
 Data wajah tersimpan lokal di `data/` (gitignored); tidak ada yang keluar mesin.
+
+> **Catatan:** data yang didaftarkan dengan SFace (versi lama) tidak kompatibel — hapus
+> `data/` lalu daftarkan ulang sekali.

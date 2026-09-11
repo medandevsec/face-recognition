@@ -13,7 +13,7 @@ import pytest
 import cv2
 import core.embedder as emb
 from core.detector import YUNET_PATH
-from core.embedder import SFACE_PATH
+from core.embedder import ADAFACE_PATH
 
 FACE_URLS = {
     "lena": "https://raw.githubusercontent.com/opencv/opencv/master/samples/data/lena.jpg",
@@ -23,11 +23,11 @@ FACE_URLS = {
 
 @pytest.fixture(scope="session")
 def models_ok():
-    return os.path.exists(SFACE_PATH) and os.path.exists(YUNET_PATH)
+    return os.path.exists(ADAFACE_PATH) and os.path.exists(YUNET_PATH)
 
 
 def models_available():
-    return os.path.exists(SFACE_PATH) and os.path.exists(YUNET_PATH)
+    return os.path.exists(ADAFACE_PATH) and os.path.exists(YUNET_PATH)
 
 
 @pytest.fixture(scope="session")

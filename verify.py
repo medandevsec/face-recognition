@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 
 from core.detector import detect_faces
-from core.embedder import align_face, embed, load_embeddings, cosine_similarity
+from core.embedder import align_face, embed, load_embeddings, cosine_similarity, EMBEDDING_MODEL, embedding_compatible
 from core.ui import draw_box, draw_corners, draw_mesh, padded_box
 
 MATCH_THRESHOLD = 0.45
@@ -215,6 +215,11 @@ def main():
     meta = embeddings.get(nik)
     if meta is None:
         print(f"NIK {mask_nik(nik)} is not registered. Run: python ktp_register.py {nik} <ktp_image>")
+        return
+    if not embedding_compatible(meta):
+        print(f"NIK {mask_nik(nik)} was registered with another embedding model "
+              f"({meta.get('model') or 'unknown'}). Re-register it with the current "
+              f"model ({EMBEDDING_MODEL}).")
         return
 
     verifier = Verifier(nik, meta, args.threshold, motion_only=args.motion_only)

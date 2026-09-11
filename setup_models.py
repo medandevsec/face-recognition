@@ -8,7 +8,7 @@ ZOO = "https://github.com/opencv/opencv_zoo/raw/main/models"
 
 MODELS = {
     "face_detection_yunet_2023mar.onnx": f"{ZOO}/face_detection_yunet/face_detection_yunet_2023mar.onnx",
-    "face_recognition_sface_2021dec.onnx": f"{ZOO}/face_recognition_sface/face_recognition_sface_2021dec.onnx",
+    "adaface_ir_101.onnx": "https://github.com/yakhyo/adaface-onnx/releases/download/weights/adaface_ir_101.onnx",
 }
 
 def download(url, dest):

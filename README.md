@@ -1,17 +1,26 @@
 # Face Recognition
 
 Face recognition with a jarvis-style dot overlay. Uses OpenCV only — **YuNet** for
-face detection, **SFace** for deep-learned face embeddings. No dlib, no cmake.
+face detection and **AdaFace** (ONNX, MIT license) for 512-d face embeddings.
+No dlib, no cmake.
 
 ## Setup
 
 ```
 pip install -r requirements.txt
-python setup_models.py      # downloads YuNet + SFace ONNX models once
+python setup_models.py      # downloads YuNet + AdaFace ONNX models once
 ```
 
-`opencv-contrib-python` includes everything the code needs; the two model files
-are downloaded automatically from the OpenCV model zoo.
+`opencv-contrib-python` handles detection; `onnxruntime` runs the **AdaFace IR-101**
+embedding model (MIT-licensed, free to use commercially). The model files are
+downloaded automatically: YuNet from the OpenCV model zoo and AdaFace from the
+[adaface-onnx release](https://github.com/yakhyo/adaface-onnx).
+
+## Upgrading from the old SFace embeddings
+
+Data registered with the previous SFace-based embedding is **not compatible**.
+`verify.py` refuses mismatched registrations with a "re-register" hint — delete
+`data/` and register everyone again once.
 
 ## Register a person
 
@@ -94,11 +103,13 @@ the repo out to a new client.
 ## Notes
 
 - `COSINE_THRESHOLD` in main.py (0.5) = strictness. Similarity is a cosine
-  score in 0..1 — higher threshold = stricter match. Pass `--threshold 0.7`
+  score (~1 for the same person, below 0 for different people) — higher
+  threshold = stricter match. Pass `--threshold 0.7`
   on the CLI (main.py and verify.py) instead of editing code.
 - Accuracy improves a lot with 3-5 photos per person vs just 1.
-- YuNet + SFace handle odd angles and low light far better than a Haar/LBPH
-  pipeline, and need only a few MB of ONNX models downloaded once.
+- YuNet + AdaFace handle odd angles and low light far better than a Haar/LBPH
+  pipeline, and need only a few hundred MB of ONNX models downloaded once
+  (AdaFace IR-101 is ~260 MB; the faster IR-18 variant is a drop-in swap).
 - Multi-sample registrations store the L2-normalized mean embedding, so adding
   more photos never biases the similarity score.
 - Blink liveness is a heuristic (eye-area brightness impulse while the face is
