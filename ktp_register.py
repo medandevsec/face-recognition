@@ -5,7 +5,7 @@ import re
 import sys
 from core.embedder import align_face, mean_embedding, load_embeddings, save_embeddings, FACES_DIR
 from core.ktp import dewarp_card, extract_face_region
-from core.ktp_ocr import extract_fields, extract_text, find_tessdata, find_tesseract
+from core.ktp_ocr import extract_fields, extract_text, find_tesseract
 
 def mask_nik(nik):
     return f"{nik[:2]}xx-xxxx-{nik[-4:]}"

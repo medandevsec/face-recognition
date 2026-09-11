@@ -223,7 +223,6 @@ def main():
 
     if ext in IMAGE_EXT:
         frame = cv2.imread(source)
-        frame = cv2.imread(source)
         if frame is None:
             print("could not read image")
             return

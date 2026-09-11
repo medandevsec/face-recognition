@@ -1,7 +1,7 @@
 ﻿import numpy as np
 import pytest
 
-from core.embedder import align_face, cosine_similarity, embed
+from core.embedder import align_face, cosine_similarity, embed, load_embeddings, save_embeddings
 
 from conftest import models_available
 
@@ -37,3 +37,15 @@ def test_same_person_high(lena_emb):
 def test_different_person_low(lena_emb, messi_emb):
     sim = cosine_similarity(lena_emb, messi_emb)
     assert sim < 0.35
+
+
+def test_roundtrip_preserves_name_metadata(embedder_paths):
+    vec = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    save_embeddings({"1234567890123456": {"embedding": vec, "samples": 3, "name": "BUDI SANTOSO"}})
+    loaded = load_embeddings()["1234567890123456"]
+    assert loaded["samples"] == 3
+    assert loaded["name"] == "BUDI SANTOSO"
+    assert np.allclose(loaded["embedding"], vec)
+
+    save_embeddings({"1234567890123456": {"embedding": vec, "samples": 1}})
+    assert "name" not in load_embeddings()["1234567890123456"]

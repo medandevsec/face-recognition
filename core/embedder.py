@@ -46,20 +46,22 @@ def load_embeddings():
         return {}
     with open(EMBEDDINGS_PATH, "r") as f:
         raw = json.load(f)
-    return {
-        name: {
-            "embedding": np.array(meta["embedding"], dtype=np.float32),
-            "samples": meta["samples"],
-        }
-        for name, meta in raw.items()
-    }
+    out = {}
+    for name, meta in raw.items():
+        item = {"embedding": np.array(meta["embedding"], dtype=np.float32), "samples": meta["samples"]}
+        if meta.get("name"):
+            item["name"] = meta["name"]
+        out[name] = item
+    return out
 
 def save_embeddings(embeddings):
     os.makedirs(os.path.dirname(EMBEDDINGS_PATH), exist_ok=True)
-    raw = {
-        name: {"embedding": meta["embedding"].tolist(), "samples": meta["samples"]}
-        for name, meta in embeddings.items()
-    }
+    raw = {}
+    for name, meta in embeddings.items():
+        item = {"embedding": meta["embedding"].tolist(), "samples": meta["samples"]}
+        if meta.get("name"):
+            item["name"] = meta["name"]
+        raw[name] = item
     with open(EMBEDDINGS_PATH, "w") as f:
         json.dump(raw, f, indent=2)
 
