@@ -47,9 +47,9 @@ Press `q` to quit (webcam/video mode).
 
 ## 2021 KTP Photo – Sample Test
 
-A 2021 KTP (Indonesian ID card) photo recognized as a registered face: bounding
-box + name tag + identity text (NIK / NAME / ADDRESS / MATCH), without covering
-the camera area.
+A 2021 KTP (Indonesian ID card) photo used as a sample test image. The recognition
+pipeline registers the holder's face under the NIK and displays a cyan box + name
+tag + identity text (NIK / NAME / ADDRESS / MATCH) in the live view.
 
 ![2021 KTP photo sample test](docs/uji-sampel-ktp-2021.png)
 
