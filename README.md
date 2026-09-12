@@ -90,7 +90,22 @@ hard-resets it. Tune strictness with `--threshold` (default 0.45). Options:
 1. Copy this whole folder.
 2. Delete everything inside `data/`.
 3. Register the new client's people.
-4. Done — same code, new data.
+4. Done - same code, new data.
+
+### Keeping real people out of the repo (real persons / PDP)
+
+The committed `data/` and `ktps/` contain only **synthetic example** KTPs (sample
+faces reuse public test photos). To register a real person **locally-only** so
+their face/NIK never lands in a commit:
+
+```
+git update-index --assume-unchanged data/embeddings.json
+python ktp_register.py 3273011501900001 path/to/ktp.jpg   # or --ocr
+```
+
+Adding more photos of the same person re-embeds and averages them (accuracy
+improves toward 3-5 samples). Reset the tracked file later with
+`git update-index --no-assume-unchanged data/embeddings.json`.
 
 ## Privacy (PDP / GDPR)
 

@@ -4,3 +4,5 @@ __pycache__/
 models/*.onnx
 output.jpg
 *.mp4
+# orang asli yang diregistrasi khusus untuk dipakai lokal, TIDAK ikut repo
+data/faces/1277060607860003/
