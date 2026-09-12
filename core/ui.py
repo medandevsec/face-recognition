@@ -169,7 +169,7 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=250):
 
     overlay = frame.copy()
     _rounded_rect(overlay, x0, y0, x0 + width, y0 + panel_h, 8, (0, 0, 0), -1)
-    cv2.addWeighted(overlay, 0.35, frame, 0.65, 0, frame)
+    cv2.addWeighted(overlay, 0.62, frame, 0.38, 0, frame)
     _rounded_rect(frame, x0, y0, x0 + width, y0 + panel_h, 8, color, 1)
     cv2.line(frame, (x0 + 6, y0 + title_h), (x0 + width - 6, y0 + title_h), color, 1)
     cv2.putText(frame, title, (x0 + pad, y0 + 12), font, 0.38, color, 1)
