@@ -119,7 +119,7 @@ the repo out to a new client.
 ## Tests
 
 ```
-pip install -r requirements.txt pytest pytesseract
+pip install -r requirements.txt pytest
 # apt/dnf/winget install tesseract-ocr   # optional — OCR tests skip if missing
 python -m pytest
 ```
