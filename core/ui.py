@@ -109,20 +109,17 @@ def wrap_text_cv(text, font, scale, thickness, max_w):
     return lines
 
 
-def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=420):
-    """Right-edge panel with label/value rows (e.g. NIK / NAMA / ALAMAT)."""
+def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=330):
+    """Compact, semi-transparent right-edge panel with label/value rows."""
     h, w = frame.shape[:2]
     if w <= width + 24:
-        width = int(w * 0.55)
+        width = int(w * 0.5)
 
     font = cv2.FONT_HERSHEY_DUPLEX
-    label_scale, val_scale = 0.55, 0.7
+    label_scale, val_scale = 0.5, 0.6
     label_th, val_th = 1, 2
-    pad = 14
-    title_h = 30
-    row_h = 26
-    label_gap = 10
-    val_max = width - pad * 2 - 60 - label_gap - 6
+    pad, title_h, row_h, label_gap = 12, 24, 22, 8
+    val_max = width - pad * 2 - 56 - label_gap
 
     layout = []
     rows = 0
@@ -135,27 +132,30 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=420):
     if not layout:
         return 0
 
-    panel_h = title_h + rows * row_h + (len(layout) - 1) * 6 + pad
-    x0 = w - width - 12
-    y0 = 12
+    panel_h = title_h + rows * row_h + (len(layout) - 1) * 4 + pad
+    x0 = w - width - 10
+    y0 = 42  # below the LIVE badge
 
-    cv2.rectangle(frame, (x0, y0), (x0 + width, y0 + panel_h), (0, 0, 0), cv2.FILLED)
+    overlay = frame.copy()
+    cv2.rectangle(overlay, (x0, y0), (x0 + width, y0 + panel_h), (0, 0, 0), cv2.FILLED)
+    cv2.addWeighted(overlay, 0.4, frame, 0.6, 0, frame)
     cv2.rectangle(frame, (x0, y0), (x0 + width, y0 + panel_h), color, 1)
-    cv2.putText(frame, title, (x0 + pad, y0 + 22), cv2.FONT_HERSHEY_DUPLEX, 0.8, color, 1)
+    cv2.line(frame, (x0, y0 + title_h), (x0 + width, y0 + title_h), color, 1)
+    cv2.putText(frame, title, (x0 + pad, y0 + 18), cv2.FONT_HERSHEY_DUPLEX, 0.55, color, 1)
 
-    ty = y0 + title_h + row_h - 4
+    ty = y0 + title_h + row_h - 3
     for label, lines in layout:
         (lw, lh), _ = cv2.getTextSize(label, font, label_scale, label_th)
         cv2.putText(frame, label, (x0 + pad, ty), font, label_scale, color, label_th)
         lx = x0 + pad + lw + label_gap
         highlight = label == "MATCH"
-        for line in lines:
+        for i, line in enumerate(lines):
             cv2.putText(frame, line, (lx, ty), font,
-                        val_scale + 0.15 if highlight else val_scale,
+                        val_scale + 0.12 if highlight else val_scale,
                         color if highlight else (255, 255, 255),
                         val_th + 1 if highlight else val_th)
             ty += row_h
-        ty += 6
+        ty += 4
     return 1
 
 

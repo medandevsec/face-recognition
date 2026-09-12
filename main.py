@@ -43,7 +43,9 @@ def recognize(face_vec, embeddings, threshold):
             continue
         sim = cosine_similarity(face_vec, meta["embedding"])
         if sim > best_sim:
-            best_sim, best_name, best_nik = sim, name, name
+            best_sim = sim
+            best_name = meta.get("name") or name
+            best_nik = name
     if best_sim >= threshold:
         return best_name, best_nik, best_sim * 100
     return "Unknown", None, 0.0
