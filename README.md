@@ -43,12 +43,13 @@ python main.py --source video.mp4 --output result.mp4
 Known face = name + cyan box + jarvis dots + match %. Unknown = red box.
 Press `q` to quit (webcam/video mode).
 
-## Uji Sampel KTP Photo Tahun 2021
+## 2021 KTP Photo – Sample Test
 
-KTP photo (Tahun 2021) dikenali sebagai wajah terdaftar: bounding box + tag nama
-+ teks identitas (NIK/NAMA/ALAMAT/MATCH) tanpa menutup area kamera.
+A 2021 KTP (Indonesian ID card) photo recognized as a registered face: bounding
+box + name tag + identity text (NIK / NAME / ADDRESS / MATCH), without covering
+the camera area.
 
-![Uji sampel KTP Photo Tahun 2021](docs/uji-sampel-ktp-2021.png)
+![2021 KTP photo sample test](docs/uji-sampel-ktp-2021.png)
 
 ## Register from an Indonesian ID card (KTP)
 
@@ -137,7 +138,7 @@ the repo out to a new client.
 
 ## Notes
 
-- `COSINE_THRESHOLD` in main.py (0.5) = strictness. Similarity is a cosine
+- `COSINE_THRESHOLD` in main.py (0.45) = strictness. Similarity is a cosine
   score (~1 for the same person, below 0 for different people) — higher
   threshold = stricter match. Pass `--threshold 0.7`
   on the CLI (main.py and verify.py) instead of editing code.
