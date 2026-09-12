@@ -81,5 +81,32 @@ Versi ASCII ringkas:
 
 Data wajah tersimpan lokal di `data/` (gitignored); tidak ada yang keluar mesin.
 
+## Registrasi massal KTP dari Excel (CSV)
+
+Cocok untuk skala banyak orang (mis. ratusan KTP) tanpa mengetik NIK satu per satu:
+
+1. **Isi `data/master_ktp.csv`** (buka dengan Excel; pemisah `;`, tanda kutip `"`): satu baris per foto KTP.
+   Kolom: `filename;nik;nama;tempat_lahir;tanggal_lahir;jenis_kelamin;alamat`. NIK harus 16 digit.
+   Satu orang boleh punya banyak baris (foto berbeda) — NIK sama = mean embedding gabungan.
+2. **Letakkan foto** di folder `ktps/` dengan nama sesuai kolom `filename` (contoh: `ktp_alex.jpg`).
+3. **Jalankan batch**:
+   ```
+   python batch_register_ktp.py
+   ```
+   Output: `data/batch_report.csv` (`filename;nik;status;pesan`) + ringkasan di terminal.
+   Idempoten — file yang sudah ter-registrasi dicatat di `data/batch_state.csv` dan dilewati pada run berikutnya
+   (pakai `--force` untuk ulangi). Untuk menambah baris/foto baru, cukup isi CSV lalu jalankan lagi.
+
+Pembuatan file contoh (opsional, data fiktif untuk uji coba):
+```
+python tools/gen_ktp_samples.py      # generate 9 KTP sintetik -> ktps/ sesuai baris 'contoh' di CSV
+```
+
+Catatan batch:
+- Kalau foto kartu tidak bisa di-dewarp (misal SIM/foto potret dengan kartu miring), wajah tetap dipilih
+  serta register — algoritma memilih wajah terbesar bila kartu tak terdeteksi.
+- NIK yang gagal dibaca OCR bisa langsung diketik di kolom CSV tanpa perlu memproses ulang seluruh batch.
+- Data tetap 100% lokal: NIK + embedding hanya tersimpan di `data/` (gitignored); mask di layar.
+
 > **Catatan:** data yang didaftarkan dengan SFace (versi lama) tidak kompatibel — hapus
 > `data/` lalu daftarkan ulang sekali.

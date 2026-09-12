@@ -43,7 +43,7 @@ def dewarp_card(image):
     warped = cv2.warpPerspective(image, matrix, (WARP_W, WARP_H))
     return warped, True
 
-def extract_face_region(warped):
+def extract_face_region(warped, dewarped=True):
     faces = detect_faces(warped)
     if faces is None or len(faces) == 0:
         return None
@@ -54,10 +54,11 @@ def extract_face_region(warped):
         cx = x + fw / 2.0
         cy = y + fh / 2.0
         score = fw * fh * 1e-6
-        if cx > w * 0.52:
-            score += 1.0
-        if h * 0.12 < cy < h * 0.88:
-            score += 0.5
+        if dewarped:
+            if cx > w * 0.52:
+                score += 1.0
+            if h * 0.12 < cy < h * 0.88:
+                score += 0.5
         if score > best_score:
             best_score = score
             best_face = face

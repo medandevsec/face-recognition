@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 data/
+ktps/
 models/*.onnx
 output.jpg
 *.mp4

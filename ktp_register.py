@@ -20,7 +20,7 @@ def register_from_ktp(nik, image_path, name=None):
         return False
 
     warped, dewarped = dewarp_card(img)
-    face = extract_face_region(warped)
+    face = extract_face_region(warped, dewarped=dewarped)
     if face is None:
         print("no face found in KTP image, try a clearer scan/photo")
         return False
