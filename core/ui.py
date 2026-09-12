@@ -10,20 +10,47 @@ def padded_box(x, y, w, h, height, width):
     bh = min(height - by, h + pad_top + pad_bottom)
     return bx, by, bw, bh
 
-def draw_box(frame, x, y, w, h, name, confidence):
+def draw_box(frame, x, y, w, h, name, confidence, info=None):
     color = CYAN if name != "Unknown" else (0, 0, 255)
     cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
 
-    label = name.upper()
-    (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_DUPLEX, 1.6, 3)
-    label_y = y - 45 if y - 45 > th else y + h + th + 55
-
-    cv2.rectangle(frame, (x - 4, label_y - th - 8), (x + tw + 8, label_y + 8), (0, 0, 0), cv2.FILLED)
-    cv2.putText(frame, label, (x, label_y), cv2.FONT_HERSHEY_DUPLEX, 1.6, color, 3)
-
+    lines = [name.upper()]
     if name != "Unknown":
-        conf_text = f"{confidence:.0f}% MATCH"
-        cv2.putText(frame, conf_text, (x, label_y + 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+        if info:
+            lines.extend(info)
+        lines.append(f"{confidence:.0f}% MATCH")
+
+    fonts = []
+    max_w = 0
+    for i, line in enumerate(lines):
+        scale = 1.5 if i == 0 else 0.7
+        (tw, th), _ = cv2.getTextSize(line, cv2.FONT_HERSHEY_DUPLEX, scale,
+                                      3 if i == 0 else 1)
+        fonts.append((line, scale, tw, th))
+        max_w = max(max_w, tw)
+
+    row_h = 30
+    panel_w = max_w + 24
+    panel_h = len(lines) * row_h + 16
+    px = x - 8
+    py = y - panel_h - 10
+    if py < 4:
+        py = y + h + 10
+
+    cv2.rectangle(frame, (px, py), (px + panel_w, py + panel_h), (0, 0, 0), cv2.FILLED)
+    cv2.rectangle(frame, (px, py), (px + panel_w, py + panel_h), color, 1)
+
+    ty = py + row_h
+    for i, (line, scale, tw, th) in enumerate(fonts):
+        if i == 0:
+            text_color = color
+        elif line.endswith("MATCH"):
+            text_color = color
+        else:
+            text_color = (255, 255, 255)
+        cv2.putText(frame, line, (px + 12, ty), cv2.FONT_HERSHEY_DUPLEX, scale,
+                    text_color, 3 if i == 0 else 1)
+        ty += row_h
 
 def draw_corners(frame, x, y, w, h, size=28):
     color = YELLOW
