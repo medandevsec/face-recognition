@@ -141,7 +141,11 @@ def _rounded_rect(img, x0, y0, x1, y1, r, color, thickness=1):
 
 
 def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=250):
-    """Rounded, translucent right-edge card with label/value rows + match bar."""
+    """Rounded, translucent right-edge card with label/value rows + match bar.
+
+    Draw order guarantees text is painted last so no element inside the card
+    can ever cover the MATCH label or its percentage.
+    """
     h, w = frame.shape[:2]
     if w <= width + 24:
         width = int(w * 0.42)
@@ -169,13 +173,22 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=250):
 
     overlay = frame.copy()
     _rounded_rect(overlay, x0, y0, x0 + width, y0 + panel_h, 8, (0, 0, 0), -1)
-    cv2.addWeighted(overlay, 0.62, frame, 0.38, 0, frame)
+    cv2.addWeighted(overlay, 0.85, frame, 0.15, 0, frame)
     _rounded_rect(frame, x0, y0, x0 + width, y0 + panel_h, 8, color, 1)
     cv2.line(frame, (x0 + 6, y0 + title_h), (x0 + width - 6, y0 + title_h), color, 1)
     cv2.putText(frame, title, (x0 + pad, y0 + 12), font, 0.38, color, 1)
 
+    bar_pct = None
+    for label, lines in layout:
+        if label == "MATCH" and lines:
+            try:
+                bar_pct = float(lines[0].rstrip("%")) / 100.0
+                bar_pct = max(0.0, min(1.0, bar_pct))
+            except ValueError:
+                bar_pct = None
+            break
+
     ty = y0 + title_h + row_h - 2
-    last_row_y = ty
     for label, lines in layout:
         cv2.putText(frame, label, (x0 + pad, ty), font, label_scale, color, label_th)
         lx = x0 + pad + label_col
@@ -185,23 +198,13 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=250):
                         val_scale + 0.08 if highlight else val_scale,
                         color if highlight else (255, 255, 255),
                         val_th + 1 if highlight else val_th)
-            last_row_y = ty
+            if highlight and bar_pct is not None:
+                bar_y = ty - row_h + 6
+                bw = width - pad * 2 - label_col
+                cv2.rectangle(frame, (lx, bar_y), (lx + bw, bar_y + 3), (40, 40, 40), -1)
+                cv2.rectangle(frame, (lx, bar_y), (lx + int(bw * bar_pct), bar_y + 3), color, -1)
             ty += row_h
         ty += gap
-
-    for label, lines in layout:
-        if label == "MATCH" and lines:
-            try:
-                pct = float(lines[0].rstrip("%")) / 100.0
-            except ValueError:
-                break
-            bx = x0 + pad + label_col
-            bw = width - pad * 2 - label_col
-            by = last_row_y - row_h + 6
-            cv2.rectangle(frame, (bx, by), (bx + bw, by + 3), (50, 50, 50), -1)
-            cv2.rectangle(frame, (bx, by), (bx + int(bw * max(0.0, min(1.0, pct))), by + 3),
-                          color, -1)
-            break
     return 1
 
 
