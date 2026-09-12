@@ -43,6 +43,13 @@ python main.py --source video.mp4 --output result.mp4
 Known face = name + cyan box + jarvis dots + match %. Unknown = red box.
 Press `q` to quit (webcam/video mode).
 
+## Uji Sampel KTP Photo Tahun 2021
+
+KTP photo (Tahun 2021) dikenali sebagai wajah terdaftar: bounding box + tag nama
++ teks identitas (NIK/NAMA/ALAMAT/MATCH) tanpa menutup area kamera.
+
+![Uji sampel KTP Photo Tahun 2021](docs/uji-sampel-ktp-2021.png)
+
 ## Register from an Indonesian ID card (KTP)
 
 ```
