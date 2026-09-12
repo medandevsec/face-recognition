@@ -14,6 +14,9 @@ ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MASTER_CSV = os.path.join(ROOT_DIR, "data", "master_ktp.csv")
 PERSONAL_CSV = os.path.join(ROOT_DIR, "data", "personal_info.csv")  # local-only overlay info (gitignored)
 
+def mask_nik(nik):
+    return f"{nik[:2]}xx-xxxx-{nik[-4:]}"
+
 def load_master(csv_path=MASTER_CSV):
     """nik -> master row (nama, alamat, ...) for the camera overlay.
 
@@ -70,7 +73,7 @@ def process_frame(frame, embeddings, threshold=COSINE_THRESHOLD, master=None):
                 if row:
                     best_match = match_pct
                     best_panel = [
-                        ("NIK", nik),
+                        ("NIK", mask_nik(nik)),
                         ("NAMA", (row.get("nama") or "").strip() or None),
                         ("ALAMAT", (row.get("alamat") or "").strip() or None),
                         ("MATCH", f"{match_pct:.0f}%"),

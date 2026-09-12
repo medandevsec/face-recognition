@@ -1,7 +1,7 @@
 # Face Recognition
 
-Face recognition with a jarvis-style dot overlay. Uses OpenCV only — **YuNet** for
-face detection and **AdaFace** (ONNX, MIT license) for 512-d face embeddings.
+Face recognition with a jarvis-style dot overlay. OpenCV (**YuNet**) finds faces,
+onsnxruntime runs **AdaFace** (ONNX, MIT license) for 512-d face embeddings.
 No dlib, no cmake.
 
 ## Setup
@@ -40,7 +40,9 @@ python main.py --source photo.jpg --output result.jpg
 python main.py --source video.mp4 --output result.mp4
 ```
 
-Known face = name + cyan box + jarvis dots + match %. Unknown = red box.
+Known face = cyan box + jarvis dots + name tag. The borderless identity text
+(NIK / NAME / ADDRESS / MATCH) appears at the top-right for people listed in the
+roster, with the NIK masked (`12xx-xxxx-0003`). Unknown = red box.
 Press `q` to quit (webcam/video mode).
 
 ## 2021 KTP Photo – Sample Test
@@ -59,8 +61,10 @@ python ktp_register.py 3273011501900001 ktp_scan.jpg
 
 Pipeline: detects the card corners, warps it flat (perspective correction),
 extracts the card holder's face, and registers it under the holder's **NIK**
-(validated as exactly 16 digits). The card's face area is preferred; if the
-cascade detects nothing there it falls back to the largest face on the card.
+(validated as exactly 16 digits). Face selection picks the largest face and
+biases toward the holder's photo (right half of a dewarped card, vertically
+centered); if no face is found registration fails with a clear message. When the
+card corners are not detected the photo is used as-is (a flat scan still works).
 
 ### Auto-read NIK / name with OCR (optional)
 
