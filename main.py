@@ -71,6 +71,7 @@ def process_frame(frame, embeddings, threshold=COSINE_THRESHOLD, master=None):
                         ("NIK", nik),
                         ("NAMA", (row.get("nama") or "").strip() or None),
                         ("ALAMAT", (row.get("alamat") or "").strip() or None),
+                        ("MATCH", f"{match_pct:.0f}%"),
                     ]
 
         draw_mesh(frame, bx, by, bw, bh)

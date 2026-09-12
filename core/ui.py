@@ -148,8 +148,12 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=420):
         (lw, lh), _ = cv2.getTextSize(label, font, label_scale, label_th)
         cv2.putText(frame, label, (x0 + pad, ty), font, label_scale, color, label_th)
         lx = x0 + pad + lw + label_gap
+        highlight = label == "MATCH"
         for line in lines:
-            cv2.putText(frame, line, (lx, ty), font, val_scale, (255, 255, 255), val_th)
+            cv2.putText(frame, line, (lx, ty), font,
+                        val_scale + 0.15 if highlight else val_scale,
+                        color if highlight else (255, 255, 255),
+                        val_th + 1 if highlight else val_th)
             ty += row_h
         ty += 6
     return 1
