@@ -140,17 +140,17 @@ def _rounded_rect(img, x0, y0, x1, y1, r, color, thickness=1):
     cv2.ellipse(img, (x1 - r, y1 - r), (r, r), 0, 0, 90, color, thickness)
 
 
-def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=310):
+def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=250):
     """Rounded, translucent right-edge card with label/value rows + match bar."""
     h, w = frame.shape[:2]
     if w <= width + 24:
-        width = int(w * 0.48)
+        width = int(w * 0.42)
 
     font = cv2.FONT_HERSHEY_DUPLEX
-    label_scale, val_scale = 0.48, 0.58
-    label_th, val_th = 1, 2
-    pad, title_h, row_h, gap = 12, 22, 21, 4
-    label_col = 54
+    label_scale, val_scale = 0.36, 0.44
+    label_th, val_th = 1, 1
+    pad, title_h, row_h, gap = 8, 15, 15, 2
+    label_col = 40
     val_max = width - pad * 2 - label_col
 
     layout = []
@@ -165,16 +165,16 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=310):
         return 0
 
     panel_h = title_h + rows * row_h + (len(layout) - 1) * gap + pad
-    x0, y0 = w - width - 10, 42  # below the LIVE badge
+    x0, y0 = w - width - 8, 40  # below the LIVE badge
 
     overlay = frame.copy()
-    _rounded_rect(overlay, x0, y0, x0 + width, y0 + panel_h, 10, (0, 0, 0), -1)
-    cv2.addWeighted(overlay, 0.45, frame, 0.55, 0, frame)
-    _rounded_rect(frame, x0, y0, x0 + width, y0 + panel_h, 10, color, 1)
-    cv2.line(frame, (x0 + 8, y0 + title_h), (x0 + width - 8, y0 + title_h), color, 1)
-    cv2.putText(frame, title, (x0 + pad, y0 + 17), font, 0.5, color, 1)
+    _rounded_rect(overlay, x0, y0, x0 + width, y0 + panel_h, 8, (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.35, frame, 0.65, 0, frame)
+    _rounded_rect(frame, x0, y0, x0 + width, y0 + panel_h, 8, color, 1)
+    cv2.line(frame, (x0 + 6, y0 + title_h), (x0 + width - 6, y0 + title_h), color, 1)
+    cv2.putText(frame, title, (x0 + pad, y0 + 12), font, 0.38, color, 1)
 
-    ty = y0 + title_h + row_h - 3
+    ty = y0 + title_h + row_h - 2
     last_row_y = ty
     for label, lines in layout:
         cv2.putText(frame, label, (x0 + pad, ty), font, label_scale, color, label_th)
@@ -182,7 +182,7 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=310):
         highlight = label == "MATCH"
         for line in lines:
             cv2.putText(frame, line, (lx, ty), font,
-                        val_scale + 0.12 if highlight else val_scale,
+                        val_scale + 0.08 if highlight else val_scale,
                         color if highlight else (255, 255, 255),
                         val_th + 1 if highlight else val_th)
             last_row_y = ty
@@ -197,9 +197,9 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=310):
                 break
             bx = x0 + pad + label_col
             bw = width - pad * 2 - label_col
-            by = last_row_y - row_h + 8
-            cv2.rectangle(frame, (bx, by), (bx + bw, by + 5), (50, 50, 50), -1)
-            cv2.rectangle(frame, (bx, by), (bx + int(bw * max(0.0, min(1.0, pct))), by + 5),
+            by = last_row_y - row_h + 6
+            cv2.rectangle(frame, (bx, by), (bx + bw, by + 3), (50, 50, 50), -1)
+            cv2.rectangle(frame, (bx, by), (bx + int(bw * max(0.0, min(1.0, pct))), by + 3),
                           color, -1)
             break
     return 1
