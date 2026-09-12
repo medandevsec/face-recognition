@@ -92,6 +92,69 @@ def draw_mesh(frame, x, y, w, h):
         cv2.circle(overlay, p, 3, (255, 255, 255), -1, cv2.LINE_AA)
     cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
 
+def wrap_text_cv(text, font, scale, thickness, max_w):
+    words = str(text).split()
+    if not words:
+        return [""]
+    lines, cur = [], words[0]
+    for word in words[1:]:
+        test = cur + " " + word
+        (tw, _), _ = cv2.getTextSize(test, font, scale, thickness)
+        if tw <= max_w:
+            cur = test
+        else:
+            lines.append(cur)
+            cur = word
+    lines.append(cur)
+    return lines
+
+
+def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=420):
+    """Right-edge panel with label/value rows (e.g. NIK / NAMA / ALAMAT)."""
+    h, w = frame.shape[:2]
+    if w <= width + 24:
+        width = int(w * 0.55)
+
+    font = cv2.FONT_HERSHEY_DUPLEX
+    label_scale, val_scale = 0.55, 0.7
+    label_th, val_th = 1, 2
+    pad = 14
+    title_h = 30
+    row_h = 26
+    label_gap = 10
+    val_max = width - pad * 2 - 60 - label_gap - 6
+
+    layout = []
+    rows = 0
+    for label, value in pairs:
+        if value is None:
+            continue
+        lines = wrap_text_cv(value, font, val_scale, val_th, val_max)
+        layout.append((label, lines))
+        rows += len(lines)
+    if not layout:
+        return 0
+
+    panel_h = title_h + rows * row_h + (len(layout) - 1) * 6 + pad
+    x0 = w - width - 12
+    y0 = 12
+
+    cv2.rectangle(frame, (x0, y0), (x0 + width, y0 + panel_h), (0, 0, 0), cv2.FILLED)
+    cv2.rectangle(frame, (x0, y0), (x0 + width, y0 + panel_h), color, 1)
+    cv2.putText(frame, title, (x0 + pad, y0 + 22), cv2.FONT_HERSHEY_DUPLEX, 0.8, color, 1)
+
+    ty = y0 + title_h + row_h - 4
+    for label, lines in layout:
+        (lw, lh), _ = cv2.getTextSize(label, font, label_scale, label_th)
+        cv2.putText(frame, label, (x0 + pad, ty), font, label_scale, color, label_th)
+        lx = x0 + pad + lw + label_gap
+        for line in lines:
+            cv2.putText(frame, line, (lx, ty), font, val_scale, (255, 255, 255), val_th)
+            ty += row_h
+        ty += 6
+    return 1
+
+
 def draw_hud(frame, fps, face_count):
     h, w = frame.shape[:2]
     cv2.rectangle(frame, (0, h - 55), (220, h), (0, 0, 0), cv2.FILLED)

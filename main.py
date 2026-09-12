@@ -6,7 +6,7 @@ import time
 from core.detector import detect_faces
 from core.embedder import (align_face, embed, load_embeddings, cosine_similarity,
                            embedding_compatible, EMBEDDING_DIM)
-from core.ui import draw_box, draw_corners, draw_mesh, draw_hud, padded_box
+from core.ui import draw_box, draw_corners, draw_mesh, draw_hud, draw_side_panel, padded_box
 
 COSINE_THRESHOLD = 0.45  # higher = stricter match (cosine similarity, 0..1); 0.45 aligns with verify.py/validator
 WINDOW_NAME = "Face Recognition"
@@ -54,26 +54,31 @@ def process_frame(frame, embeddings, threshold=COSINE_THRESHOLD, master=None):
     if faces is None:
         return frame, 0
 
+    best_panel, best_match = None, 0.0
     for face in faces:
         x, y, w, h = [int(v) for v in face[:4]]
         bx, by, bw, bh = padded_box(x, y, w, h, frame.shape[0], frame.shape[1])
 
         name, match_pct = "Unknown", 0.0
-        info = None
         if embeddings:
             aligned = align_face(frame, face)
             name, nik, match_pct = recognize(embed(aligned), embeddings, threshold)
-            if nik and master:
+            if match_pct > best_match and nik and master:
                 row = master.get(nik)
                 if row:
-                    addr = (row.get("alamat") or "").strip()
-                    info = [f"NIK {nik}"]
-                    if addr:
-                        info.append(addr)
+                    best_match = match_pct
+                    best_panel = [
+                        ("NIK", nik),
+                        ("NAMA", (row.get("nama") or "").strip() or None),
+                        ("ALAMAT", (row.get("alamat") or "").strip() or None),
+                    ]
 
         draw_mesh(frame, bx, by, bw, bh)
         draw_corners(frame, bx, by, bw, bh)
-        draw_box(frame, bx, by, bw, bh, name, match_pct, info)
+        draw_box(frame, bx, by, bw, bh, name, match_pct)
+
+    if best_panel:
+        draw_side_panel(frame, best_panel)
 
     return frame, face_count
 
