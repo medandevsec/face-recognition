@@ -141,10 +141,10 @@ def _rounded_rect(img, x0, y0, x1, y1, r, color, thickness=1):
 
 
 def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=250):
-    """Rounded, translucent right-edge card with label/value rows + match bar.
+    """Plain, borderless identity text pinned top-right below the LIVE badge.
 
-    Draw order guarantees text is painted last so no element inside the card
-    can ever cover the MATCH label or its percentage.
+    No panel box / background is drawn, so the camera stays fully visible.
+    Slight drop shadow keeps the rows readable on any background.
     """
     h, w = frame.shape[:2]
     if w <= width + 24:
@@ -153,56 +153,38 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=250):
     font = cv2.FONT_HERSHEY_DUPLEX
     label_scale, val_scale = 0.36, 0.44
     label_th, val_th = 1, 1
-    pad, title_h, row_h, gap = 8, 15, 15, 2
+    pad, title_h, row_h, gap = 8, 20, 15, 2
     label_col = 40
     val_max = width - pad * 2 - label_col
 
     layout = []
-    rows = 0
     for label, value in pairs:
         if value is None:
             continue
         lines = wrap_text_cv(value, font, val_scale, val_th, val_max)
         layout.append((label, lines))
-        rows += len(lines)
     if not layout:
         return 0
 
-    panel_h = title_h + rows * row_h + (len(layout) - 1) * gap + pad
-    x0, y0 = w - width - 8, 40  # below the LIVE badge
+    x0 = w - width - 8
+    y0 = 38
 
-    overlay = frame.copy()
-    _rounded_rect(overlay, x0, y0, x0 + width, y0 + panel_h, 8, (0, 0, 0), -1)
-    cv2.addWeighted(overlay, 0.85, frame, 0.15, 0, frame)
-    _rounded_rect(frame, x0, y0, x0 + width, y0 + panel_h, 8, color, 1)
-    cv2.line(frame, (x0 + 6, y0 + title_h), (x0 + width - 6, y0 + title_h), color, 1)
-    cv2.putText(frame, title, (x0 + pad, y0 + 12), font, 0.38, color, 1)
+    def put(text, x, yb, scale, thick, col):
+        cv2.putText(frame, text, (x + 1, yb + 1), font, scale, (0, 0, 0), thick + 1)
+        cv2.putText(frame, text, (x, yb), font, scale, col, thick)
 
-    bar_pct = None
+    put(title, x0 + pad, y0 + 12, 0.38, label_th, color)
+
+    ty = y0 + title_h + row_h - 4
     for label, lines in layout:
-        if label == "MATCH" and lines:
-            try:
-                bar_pct = float(lines[0].rstrip("%")) / 100.0
-                bar_pct = max(0.0, min(1.0, bar_pct))
-            except ValueError:
-                bar_pct = None
-            break
-
-    ty = y0 + title_h + row_h - 2
-    for label, lines in layout:
-        cv2.putText(frame, label, (x0 + pad, ty), font, label_scale, color, label_th)
+        put(label, x0 + pad, ty, label_scale, label_th, color)
         lx = x0 + pad + label_col
         highlight = label == "MATCH"
         for line in lines:
-            cv2.putText(frame, line, (lx, ty), font,
-                        val_scale + 0.08 if highlight else val_scale,
-                        color if highlight else (255, 255, 255),
-                        val_th + 1 if highlight else val_th)
-            if highlight and bar_pct is not None:
-                bar_y = ty - row_h + 6
-                bw = width - pad * 2 - label_col
-                cv2.rectangle(frame, (lx, bar_y), (lx + bw, bar_y + 3), (40, 40, 40), -1)
-                cv2.rectangle(frame, (lx, bar_y), (lx + int(bw * bar_pct), bar_y + 3), color, -1)
+            put(line, lx, ty,
+                val_scale + 0.08 if highlight else val_scale,
+                val_th + 1 if highlight else val_th,
+                color if highlight else (255, 255, 255))
             ty += row_h
         ty += gap
     return 1

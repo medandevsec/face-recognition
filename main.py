@@ -1,16 +1,40 @@
 import cv2
 import argparse
+import csv
 import os
 import time
 from core.detector import detect_faces
 from core.embedder import (align_face, embed, load_embeddings, cosine_similarity,
                            embedding_compatible, EMBEDDING_DIM)
-from core.ui import draw_box, draw_corners, draw_mesh, draw_hud, padded_box
+from core.ui import draw_box, draw_corners, draw_mesh, draw_hud, draw_side_panel, padded_box
 
 COSINE_THRESHOLD = 0.45  # higher = stricter match (cosine similarity, 0..1); 0.45 aligns with verify.py/validator
 WINDOW_NAME = "Face Recognition"
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 MASTER_CSV = os.path.join(ROOT_DIR, "data", "master_ktp.csv")
+PERSONAL_CSV = os.path.join(ROOT_DIR, "data", "personal_info.csv")  # local-only overlay info (gitignored)
+
+def load_master(csv_path=MASTER_CSV):
+    """nik -> master row (nama, alamat, ...) for the camera overlay.
+
+    The committed master CSV only holds synthetic example people. A local,
+    git-ignored data/personal_info.csv is merged on top so real people (e.g. an
+    employee testing on their own webcam) still get their name/address shown
+    without leaking that data into the repo.
+    """
+    master = {}
+    for path in (csv_path, PERSONAL_CSV):
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8-sig", newline="") as f:
+                for row in csv.DictReader(f, delimiter=";"):
+                    nik = (row.get("nik") or "").strip()
+                    if nik:
+                        master[nik] = row
+        except Exception as e:
+            print(f"warning: failed to read {path}: {e}")
+    return master
 
 def recognize(face_vec, embeddings, threshold):
     best_name, best_nik, best_sim = "Unknown", None, 0.0
@@ -26,12 +50,13 @@ def recognize(face_vec, embeddings, threshold):
         return best_name, best_nik, best_sim * 100
     return "Unknown", None, 0.0
 
-def process_frame(frame, embeddings, threshold=COSINE_THRESHOLD):
+def process_frame(frame, embeddings, threshold=COSINE_THRESHOLD, master=None):
     faces = detect_faces(frame)
     face_count = 0 if faces is None else len(faces)
     if faces is None:
         return frame, 0
 
+    best_panel, best_match = None, 0.0
     for face in faces:
         x, y, w, h = [int(v) for v in face[:4]]
         bx, by, bw, bh = padded_box(x, y, w, h, frame.shape[0], frame.shape[1])
@@ -40,19 +65,32 @@ def process_frame(frame, embeddings, threshold=COSINE_THRESHOLD):
         if embeddings:
             aligned = align_face(frame, face)
             name, nik, match_pct = recognize(embed(aligned), embeddings, threshold)
+            if match_pct > best_match and nik and master:
+                row = master.get(nik)
+                if row:
+                    best_match = match_pct
+                    best_panel = [
+                        ("NIK", nik),
+                        ("NAMA", (row.get("nama") or "").strip() or None),
+                        ("ALAMAT", (row.get("alamat") or "").strip() or None),
+                        ("MATCH", f"{match_pct:.0f}%"),
+                    ]
 
         draw_mesh(frame, bx, by, bw, bh)
         draw_corners(frame, bx, by, bw, bh)
         draw_box(frame, bx, by, bw, bh, name, match_pct, tag=name)
 
+    if best_panel:
+        draw_side_panel(frame, best_panel)
+
     return frame, face_count
 
-def run_image(path, embeddings, threshold, output, no_show=False):
+def run_image(path, embeddings, threshold, output, no_show=False, master=None):
     frame = cv2.imread(path)
     if frame is None:
         print("could not read image")
         return
-    frame, _ = process_frame(frame, embeddings, threshold)
+    frame, _ = process_frame(frame, embeddings, threshold, master)
     out_path = output or "output.jpg"
     cv2.imwrite(out_path, frame)
     print(f"saved to {out_path}")
@@ -63,7 +101,7 @@ def run_image(path, embeddings, threshold, output, no_show=False):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def run_video(source, embeddings, threshold, output):
+def run_video(source, embeddings, threshold, output, master=None):
     cam = cv2.VideoCapture(source)
     if not cam.isOpened():
         print("cannot open source")
@@ -84,7 +122,7 @@ def run_video(source, embeddings, threshold, output):
         ok, frame = cam.read()
         if not ok:
             break
-        frame, face_count = process_frame(frame, embeddings, threshold)
+        frame, face_count = process_frame(frame, embeddings, threshold, master)
 
         now = time.time()
         fps = 1 / (now - prev_time) if now != prev_time else 0
@@ -116,16 +154,17 @@ def main():
     embeddings = load_embeddings()
     if not embeddings:
         print("no registered faces yet. register one first: python register_face.py <name> <image>")
+    master = load_master()
 
     source = args.source
     ext = os.path.splitext(source)[1].lower()
 
     if ext in (".jpg", ".jpeg", ".png", ".bmp"):
-        run_image(source, embeddings, args.threshold, args.output, args.no_show)
+        run_image(source, embeddings, args.threshold, args.output, args.no_show, master)
     elif ext in (".mp4", ".avi", ".mov", ".mkv"):
-        run_video(source, embeddings, args.threshold, args.output)
+        run_video(source, embeddings, args.threshold, args.output, master)
     else:
-        run_video(int(source), embeddings, args.threshold, args.output)
+        run_video(int(source), embeddings, args.threshold, args.output, master)
 
 if __name__ == "__main__":
     main()
