@@ -144,8 +144,11 @@ the repo out to a new client.
   on the CLI (main.py and verify.py) instead of editing code.
 - Accuracy improves a lot with 3-5 photos per person vs just 1.
 - YuNet + AdaFace handle odd angles and low light far better than a Haar/LBPH
-  pipeline, and need only a few hundred MB of ONNX models downloaded once
-  (AdaFace IR-101 is ~260 MB; the faster IR-18 variant is a drop-in swap).
+  pipeline, and need only a few hundred MB of ONNX models downloaded once.
+  `setup_models.py` ships **AdaFace IR-101** (~260 MB). The faster IR-18
+  variant is **not** a drop-in swap: you must point `setup_models.py` at it,
+  update `EMBEDDING_MODEL` in `core/embedder.py`, and re-register everyone —
+  `embedding_compatible` rejects embeddings whose model tag differs.
 - Multi-sample registrations store the L2-normalized mean embedding, so adding
   more photos never biases the similarity score.
 - Blink liveness is a heuristic (eye-area brightness impulse while the face is
