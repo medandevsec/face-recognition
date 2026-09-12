@@ -78,7 +78,7 @@ def process_frame(frame, embeddings, threshold=COSINE_THRESHOLD, master=None):
 
         draw_mesh(frame, bx, by, bw, bh)
         draw_corners(frame, bx, by, bw, bh)
-        draw_box(frame, bx, by, bw, bh, name, match_pct)
+        draw_box(frame, bx, by, bw, bh, name, match_pct, tag=name)
 
     if best_panel:
         draw_side_panel(frame, best_panel)

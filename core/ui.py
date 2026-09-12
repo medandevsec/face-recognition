@@ -10,9 +10,28 @@ def padded_box(x, y, w, h, height, width):
     bh = min(height - by, h + pad_top + pad_bottom)
     return bx, by, bw, bh
 
-def draw_box(frame, x, y, w, h, name, confidence, info=None):
+def draw_box(frame, x, y, w, h, name, confidence, info=None, tag=None):
     color = CYAN if name != "Unknown" else (0, 0, 255)
     cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+
+    if tag is not None:
+        # slim name tag pinned to the bottom of the box (details live in the
+        # side panel, so this stays minimal and does not cover the face).
+        label = "UNKNOWN" if name == "Unknown" else name.upper()
+        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 1)
+        tag_w, tag_h = tw + 18, th + 14
+        tx = x
+        ty = y + h - tag_h
+        if ty < y:
+            ty = y
+        if tx + tag_w > frame.shape[1]:
+            tx = frame.shape[1] - tag_w
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (tx, ty), (tx + tag_w, ty + tag_h), (0, 0, 0), cv2.FILLED)
+        cv2.addWeighted(overlay, 0.5, frame, 0.5, 0, frame)
+        cv2.putText(frame, label, (tx + 9, ty + tag_h - 8), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6, color, 1)
+        return
 
     lines = [name.upper()]
     if name != "Unknown":
@@ -109,17 +128,30 @@ def wrap_text_cv(text, font, scale, thickness, max_w):
     return lines
 
 
-def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=330):
-    """Compact, semi-transparent right-edge panel with label/value rows."""
+def _rounded_rect(img, x0, y0, x1, y1, r, color, thickness=1):
+    r = min(r, (x1 - x0) // 2, (y1 - y0) // 2)
+    cv2.rectangle(img, (x0 + r, y0), (x1 - r, y0 + r), color, thickness)
+    cv2.rectangle(img, (x0 + r, y1 - r), (x1 - r, y1), color, thickness)
+    cv2.rectangle(img, (x0, y0 + r), (x0 + r, y1 - r), color, thickness)
+    cv2.rectangle(img, (x1 - r, y0 + r), (x1, y1 - r), color, thickness)
+    cv2.ellipse(img, (x0 + r, y0 + r), (r, r), 180, 0, 90, color, thickness)
+    cv2.ellipse(img, (x1 - r, y0 + r), (r, r), 270, 0, 90, color, thickness)
+    cv2.ellipse(img, (x0 + r, y1 - r), (r, r), 90, 0, 90, color, thickness)
+    cv2.ellipse(img, (x1 - r, y1 - r), (r, r), 0, 0, 90, color, thickness)
+
+
+def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=310):
+    """Rounded, translucent right-edge card with label/value rows + match bar."""
     h, w = frame.shape[:2]
     if w <= width + 24:
-        width = int(w * 0.5)
+        width = int(w * 0.48)
 
     font = cv2.FONT_HERSHEY_DUPLEX
-    label_scale, val_scale = 0.5, 0.6
+    label_scale, val_scale = 0.48, 0.58
     label_th, val_th = 1, 2
-    pad, title_h, row_h, label_gap = 12, 24, 22, 8
-    val_max = width - pad * 2 - 56 - label_gap
+    pad, title_h, row_h, gap = 12, 22, 21, 4
+    label_col = 54
+    val_max = width - pad * 2 - label_col
 
     layout = []
     rows = 0
@@ -132,30 +164,44 @@ def draw_side_panel(frame, pairs, title="IDENTITAS", color=CYAN, width=330):
     if not layout:
         return 0
 
-    panel_h = title_h + rows * row_h + (len(layout) - 1) * 4 + pad
-    x0 = w - width - 10
-    y0 = 42  # below the LIVE badge
+    panel_h = title_h + rows * row_h + (len(layout) - 1) * gap + pad
+    x0, y0 = w - width - 10, 42  # below the LIVE badge
 
     overlay = frame.copy()
-    cv2.rectangle(overlay, (x0, y0), (x0 + width, y0 + panel_h), (0, 0, 0), cv2.FILLED)
-    cv2.addWeighted(overlay, 0.4, frame, 0.6, 0, frame)
-    cv2.rectangle(frame, (x0, y0), (x0 + width, y0 + panel_h), color, 1)
-    cv2.line(frame, (x0, y0 + title_h), (x0 + width, y0 + title_h), color, 1)
-    cv2.putText(frame, title, (x0 + pad, y0 + 18), cv2.FONT_HERSHEY_DUPLEX, 0.55, color, 1)
+    _rounded_rect(overlay, x0, y0, x0 + width, y0 + panel_h, 10, (0, 0, 0), -1)
+    cv2.addWeighted(overlay, 0.45, frame, 0.55, 0, frame)
+    _rounded_rect(frame, x0, y0, x0 + width, y0 + panel_h, 10, color, 1)
+    cv2.line(frame, (x0 + 8, y0 + title_h), (x0 + width - 8, y0 + title_h), color, 1)
+    cv2.putText(frame, title, (x0 + pad, y0 + 17), font, 0.5, color, 1)
 
     ty = y0 + title_h + row_h - 3
+    last_row_y = ty
     for label, lines in layout:
-        (lw, lh), _ = cv2.getTextSize(label, font, label_scale, label_th)
         cv2.putText(frame, label, (x0 + pad, ty), font, label_scale, color, label_th)
-        lx = x0 + pad + lw + label_gap
+        lx = x0 + pad + label_col
         highlight = label == "MATCH"
-        for i, line in enumerate(lines):
+        for line in lines:
             cv2.putText(frame, line, (lx, ty), font,
                         val_scale + 0.12 if highlight else val_scale,
                         color if highlight else (255, 255, 255),
                         val_th + 1 if highlight else val_th)
+            last_row_y = ty
             ty += row_h
-        ty += 4
+        ty += gap
+
+    for label, lines in layout:
+        if label == "MATCH" and lines:
+            try:
+                pct = float(lines[0].rstrip("%")) / 100.0
+            except ValueError:
+                break
+            bx = x0 + pad + label_col
+            bw = width - pad * 2 - label_col
+            by = last_row_y - row_h + 8
+            cv2.rectangle(frame, (bx, by), (bx + bw, by + 5), (50, 50, 50), -1)
+            cv2.rectangle(frame, (bx, by), (bx + int(bw * max(0.0, min(1.0, pct))), by + 5),
+                          color, -1)
+            break
     return 1
 
 
