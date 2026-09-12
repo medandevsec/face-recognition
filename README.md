@@ -81,6 +81,26 @@ Instead of a scan, capture fresh samples from the webcam (recording a person who
 is already present):
 `python ktp_register.py <NIK> --capture 10 [--name "NAME"]`.
 
+## Batch register from Excel (master CSV)
+
+Keep the roster in an Excel sheet, export it as a **semicolon-separated CSV**, and
+register every KTP photo in one pass. The columns used are `filename` (photo file
+name), `nik` (16 digits) and `nama`; extra columns such as `alamat` are passed
+through and shown in the camera overlay's identity text.
+
+```
+python batch_register_ktp.py                     # defaults: data/master_ktp.csv + ktps/ + reports in data/
+python batch_register_ktp.py --csv team.csv --ktps scans/ --report report.csv
+```
+
+Put the KTP scans in the `ktps/` folder, named exactly as the `filename` column.
+Rows already imported are skipped (progress tracked in `data/batch_state.csv`);
+pass `--force` to re-register them anyway. A per-row report (`data/batch_report.csv`)
+and a console summary tell you how many succeeded. At startup the camera reads
+`nama`/`alamat` from this CSV, so the overlay shows NIK / NAME / ADDRESS / MATCH
+for people listed in the roster (a local, git-ignored `data/personal_info.csv` is
+merged on top for real people — see "Privacy").
+
 ## Verify live against a registered NIK (1:1)
 
 ```
