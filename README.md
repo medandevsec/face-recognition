@@ -69,6 +69,10 @@ Tesseract is detected automatically on Windows/Linux; override with
 traineddata file is available, otherwise English. NIK digits are re-OCR'd with a
 digits-only whitelist for reliability — the 16-digit NIK is the critical field.
 
+Instead of a scan, capture fresh samples from the webcam (recording a person who
+is already present):
+`python ktp_register.py <NIK> --capture 10 [--name "NAME"]`.
+
 ## Verify live against a registered NIK (1:1)
 
 ```
@@ -100,17 +104,26 @@ their face/NIK never lands in a commit:
 
 ```
 git update-index --assume-unchanged data/embeddings.json
-python ktp_register.py 3273011501900001 path/to/ktp.jpg   # or --ocr
+python ktp_register.py 3273011501900001 path/to/ktp.jpg        # or --ocr
 ```
 
-Adding more photos of the same person re-embeds and averages them (accuracy
-improves toward 3-5 samples). Reset the tracked file later with
+For the best live-camera accuracy, also add current-face samples straight from
+the webcam (the KTP photo is often years old; templates that include *live*
+frames match the camera far better):
+
+```
+python ktp_register.py 3273011501900001 --capture 10 --name "A Real Person"
+```
+
+Each additional sample re-embeds and averages with the previous ones. Reset the
+tracked file later with
 `git update-index --no-assume-unchanged data/embeddings.json`.
 
 ## Privacy (PDP / GDPR)
 
-NIK and face templates are **personal data**. This project keeps everything
-local: embeddings are stored only under `data/` (which is `.gitignore`d) and
+NIK and face templates are **personal data**. The committed `data/` and `ktps/`
+contain only the synthetic example people; real-person registrations stay local
+(faces dir is `.gitignore`d, `embeddings.json` marked assume-unchanged) and
 nothing ever leaves your machine. When publishing, audits, or sharing screenshots,
 mask NIKs (the repo masks them in its own display). Delete `data/` before handing
 the repo out to a new client.

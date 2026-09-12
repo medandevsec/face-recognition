@@ -8,7 +8,7 @@ from core.embedder import (align_face, embed, load_embeddings, cosine_similarity
                            embedding_compatible, EMBEDDING_DIM)
 from core.ui import draw_box, draw_corners, draw_mesh, draw_hud, padded_box
 
-COSINE_THRESHOLD = 0.5  # higher = stricter match (cosine similarity, 0..1)
+COSINE_THRESHOLD = 0.45  # higher = stricter match (cosine similarity, 0..1); 0.45 aligns with verify.py/validator
 WINDOW_NAME = "Face Recognition"
 MASTER_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "master_ktp.csv")
 

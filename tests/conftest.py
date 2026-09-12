@@ -36,13 +36,20 @@ def face_images():
     paths = {}
     for name, url in FACE_URLS.items():
         target = os.path.join(d, name + ".jpg")
-        try:
-            urllib.request.urlretrieve(url, target)
-            if cv2.imread(target) is None:
-                raise OSError("bad image")
-            paths[name] = target
-        except Exception:
-            raise pytest.skip(f"could not download {name} fixture: {url}")
+        local = os.path.join(ROOT, "data", "sample_faces", name + ".jpg")
+        ok = False
+        if os.path.isfile(local) and cv2.imread(local) is not None:
+            shutil.copyfile(local, target)
+            ok = True
+        else:
+            try:
+                urllib.request.urlretrieve(url, target)
+                ok = cv2.imread(target) is not None
+            except Exception:
+                ok = False
+        if not ok:
+            raise pytest.skip(f"could not obtain {name} fixture: {url}")
+        paths[name] = target
     return paths
 
 
