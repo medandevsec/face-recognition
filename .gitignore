@@ -6,3 +6,4 @@ output.jpg
 *.mp4
 # orang asli yang diregistrasi khusus untuk dipakai lokal, TIDAK ikut repo
 data/faces/1277060607860003/
+data/personal_info.csv

@@ -10,21 +10,30 @@ from core.ui import draw_box, draw_corners, draw_mesh, draw_hud, padded_box
 
 COSINE_THRESHOLD = 0.45  # higher = stricter match (cosine similarity, 0..1); 0.45 aligns with verify.py/validator
 WINDOW_NAME = "Face Recognition"
-MASTER_CSV = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "master_ktp.csv")
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+MASTER_CSV = os.path.join(ROOT_DIR, "data", "master_ktp.csv")
+PERSONAL_CSV = os.path.join(ROOT_DIR, "data", "personal_info.csv")  # local-only overlay info (gitignored)
 
 def load_master(csv_path=MASTER_CSV):
-    """nik -> master row (nama, alamat, ...) for the camera overlay."""
+    """nik -> master row (nama, alamat, ...) for the camera overlay.
+
+    The committed master CSV only holds synthetic example people. A local,
+    git-ignored data/personal_info.csv is merged on top so real people (e.g. an
+    employee testing on their own webcam) still get their name/address shown
+    without leaking that data into the repo.
+    """
     master = {}
-    if not os.path.isfile(csv_path):
-        return master
-    try:
-        with open(csv_path, encoding="utf-8-sig", newline="") as f:
-            for row in csv.DictReader(f, delimiter=";"):
-                nik = (row.get("nik") or "").strip()
-                if nik:
-                    master[nik] = row
-    except Exception as e:
-        print(f"warning: failed to read master csv {csv_path}: {e}")
+    for path in (csv_path, PERSONAL_CSV):
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8-sig", newline="") as f:
+                for row in csv.DictReader(f, delimiter=";"):
+                    nik = (row.get("nik") or "").strip()
+                    if nik:
+                        master[nik] = row
+        except Exception as e:
+            print(f"warning: failed to read {path}: {e}")
     return master
 
 def recognize(face_vec, embeddings, threshold):
