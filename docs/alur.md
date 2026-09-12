@@ -54,11 +54,11 @@ flowchart TD
         V[Webcam / video / foto] --> Y[YuNet per frame]
         Y --> E2[align + AdaFace embed]
         E2 --> CO{cosine vs embedding target}
-        CO -- "&ge;0.45" --> ST[streak bertambah]
-        CO -- "&lt;0.45" --> DE[streak susut / hard reset]
+        CO -- "cos≥0.45" --> ST[streak bertambah]
+        CO -- "cos<0.45" --> DE[streak susut / hard reset]
         ST --> LI{Liveness}
-        LI -- default --> BL[kedip mata terdeteksi?]
-        LI -- --motion-only --> MV[gerak hidung &ge;25px?]
+        LI -- default --> BL[kedip mata terdeteksi]
+        LI -- "--motion-only" --> MV[gerak hidung:min 25px]
         BL -- ya --> OK([VERIFIED / Dikenali])
         MV -- ya --> OK
     end
