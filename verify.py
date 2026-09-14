@@ -1,5 +1,6 @@
 import argparse
 import collections
+import csv
 import math
 import os
 import time
@@ -9,9 +10,9 @@ import numpy as np
 
 from core.detector import detect_faces
 from core.embedder import align_face, embed, load_embeddings, cosine_similarity, EMBEDDING_MODEL, embedding_compatible
-from core.ui import draw_box, draw_corners, draw_mesh, padded_box
+from core.ui import draw_box, draw_corners, draw_mesh, padded_box, wrap_text_cv
 
-MATCH_THRESHOLD = 0.45
+MATCH_THRESHOLD = 0.40
 LIVENESS_MIN_TRAVEL = 25.0    # cumulative nose movement (px) when using --motion-only
 VERIFY_SECONDS = 3.0          # consecutive matched time (adapted to source fps) to confirm
 STREAK_DECAY = 2              # points lost per brief gap frame (blinks/interruptions)
@@ -23,6 +24,25 @@ CYAN = (255, 255, 0)
 
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".bmp")
 VIDEO_EXT = (".mp4", ".avi", ".mov", ".mkv")
+
+ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
+MASTER_CSV = os.path.join(ROOT_DIR, "data", "master_ktp.csv")
+PERSONAL_CSV = os.path.join(ROOT_DIR, "data", "personal_info.csv")
+
+
+def load_identity(nik):
+    """Roster row (nama / alamat / ...) for a NIK, for the top header."""
+    for path in (MASTER_CSV, PERSONAL_CSV):
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8-sig", newline="") as f:
+                for row in csv.DictReader(f, delimiter=";"):
+                    if (row.get("nik") or "").strip() == nik:
+                        return row
+        except Exception:
+            continue
+    return None
 
 
 def mask_nik(nik):
@@ -166,24 +186,60 @@ class Verifier:
             hard = sim <= self.threshold - HARD_RESET_MARGIN or self.gap >= GAP_RESET_FRAMES
             self._decay(hard)
             self.verified = False
-            status = f"NO MATCH (sim {sim*100:.0f}%) | target {mask_nik(self.nik)} | threshold {self.threshold:.2f}"
+            status = f"NO MATCH (sim {sim*100:.0f}%) | threshold {self.threshold:.2f}"
         return face, status, sim, matched
 
 
-def draw(frame, verifier, face, sim, matched, status):
+def _text_w(text, scale, thickness):
+    (tw, _), _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, scale, thickness)
+    return tw
+
+
+def _fit_to_width(text, scale, thickness, max_w):
+    out = text
+    while _text_w(out, scale, thickness) > max_w and len(out) > 1:
+        out = out[:-1]
+    return (out.rstrip() + "…)") if len(out) != len(text) else out
+
+
+def draw(frame, verifier, face, sim, matched, status, idrow=None):
     if face is not None:
         x, y, w, h = [int(v) for v in face[:4]]
         bx, by, bw, bh = padded_box(x, y, w, h, frame.shape[0], frame.shape[1])
-        label = f"MATCH {sim*100:.0f}%" if matched else "Unknown"
         draw_mesh(frame, bx, by, bw, bh)
         draw_corners(frame, bx, by, bw, bh)
-        draw_box(frame, bx, by, bw, bh, label, sim * 100 if matched else 0.0)
+        cv2.rectangle(frame, (bx, by), (bx + bw, by + bh), CYAN if matched else (0, 0, 255), 2)
 
-    cv2.rectangle(frame, (0, 0), (frame.shape[1], 44), (0, 0, 0), cv2.FILLED)
-    cv2.putText(frame, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, CYAN, 2)
+    hh, ww = frame.shape[:2]
+    idrow = idrow or {}
+    name = (idrow.get("nama") or "").strip()
+    alamat = (idrow.get("alamat") or "").strip()
+    nik = mask_nik(str(verifier.nik))
+
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    addr_lines = wrap_text_cv(("ALAMAT " + alamat) if alamat else "ALAMAT -",
+                              font, 0.55, 1, ww - 24)
+    hdr_h = 46 + len(addr_lines) * 20 + 22
+    cv2.rectangle(frame, (0, 0), (ww, hdr_h), (0, 0, 0), cv2.FILLED)
+
+    nik_text = "NIK " + nik
+    nik_w = _text_w(nik_text, 0.6, 1)
+    shown_name = _fit_to_width((name.upper() or "TIDAK DIKENAL"),
+                               0.75, 2, ww - nik_w - 48)
+    cv2.putText(frame, shown_name, (12, 26), font, 0.75, CYAN, 2)
+    cv2.putText(frame, nik_text, (ww - nik_w - 12, 26), font, 0.6, (255, 255, 255), 1)
+
+    ty = 50
+    for line in addr_lines:
+        cv2.putText(frame, line, (12, ty), font, 0.55, (255, 255, 255), 1)
+        ty += 20
+
+    cv2.putText(frame, status, (12, hdr_h - 8), font, 0.6, CYAN, 1)
+
     if verifier.verified:
-        cv2.rectangle(frame, (0, 44), (frame.shape[1], 100), (0, 128, 0), cv2.FILLED)
-        cv2.putText(frame, "VERIFIED KTP HOLDER", (12, 86), cv2.FONT_HERSHEY_DUPLEX, 1.3, (255, 255, 255), 2)
+        cv2.rectangle(frame, (0, hdr_h), (ww, hdr_h + 56), (0, 128, 0), cv2.FILLED)
+        cv2.putText(frame, "VERIFIED KTP HOLDER", (12, hdr_h + 38),
+                    cv2.FONT_HERSHEY_DUPLEX, 1.3, (255, 255, 255), 2)
 
 
 def summarize(verifier):
@@ -223,6 +279,7 @@ def main():
         return
 
     verifier = Verifier(nik, meta, args.threshold, motion_only=args.motion_only)
+    idrow = load_identity(nik)
     source = args.source
     ext = os.path.splitext(str(source))[1].lower()
 
@@ -233,7 +290,7 @@ def main():
             return
         face, status, sim, matched = verifier.step(frame)
         if not args.no_show:
-            draw(frame, verifier, face, sim, matched, status)
+            draw(frame, verifier, face, sim, matched, status, idrow)
             cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
             cv2.imshow(WINDOW_NAME, frame)
             cv2.waitKey(0)
@@ -260,7 +317,7 @@ def main():
                 break
             face, status, sim, matched = verifier.step(frame)
             if not args.no_show:
-                draw(frame, verifier, face, sim, matched, status)
+                draw(frame, verifier, face, sim, matched, status, idrow)
                 cv2.imshow(WINDOW_NAME, frame)
             if verifier.verified and verifier.verified_since and time.time() - verifier.verified_since > 1.5:
                 break
