@@ -99,8 +99,8 @@ def load_embeddings():
     out = {}
     for name, meta in raw.items():
         item = {"embedding": np.array(meta["embedding"], dtype=np.float32), "samples": meta["samples"]}
-        for field in ("model", "dim", "name"):
-            if meta.get(field):
+        for field in ("model", "dim", "name", "threshold"):
+            if meta.get(field) is not None:
                 item[field] = meta[field]
         out[name] = item
     return out
@@ -115,6 +115,8 @@ def save_embeddings(embeddings):
         item["dim"] = meta.get("dim", EMBEDDING_DIM)
         if meta.get("name"):
             item["name"] = meta["name"]
+        if meta.get("threshold") is not None:
+            item["threshold"] = meta["threshold"]
         raw[name] = item
     with open(EMBEDDINGS_PATH, "w") as f:
         json.dump(raw, f, indent=2)

@@ -4,7 +4,8 @@ import cv2
 import numpy as np
 import pytest
 
-from core.ktp_ocr import extract_fields, extract_nik, extract_text, find_tessdata, find_tesseract
+from core.ktp_ocr import (extract_fields, extract_nik, extract_text, find_tessdata,
+                          find_tesseract, read_ktp_fields)
 
 try:
     import pytesseract  # noqa: F401
@@ -60,3 +61,18 @@ def test_ocr_without_whitelist_fallback():
     image = build_text_image()
     fields = extract_fields("NIK : 1234567890123456", image=image)
     assert fields["nik"] == "1234567890123456"
+
+
+def test_ocr_real_ktp_photo_reads_identity():
+    """A real (crumpled/rotated) KTP photo: NIK and name must auto-extract from
+    the image alone, reconstructing digits OCR mangles (b->6 etc.)."""
+    path = os.path.join(os.path.dirname(__file__), "..", "ktps", "KTPALEX.jpg")
+    img = cv2.imread(path)
+    assert img is not None
+    fields = read_ktp_fields(img, tesseract_cmd=TESS, tessdata_dir=TESSDATA,
+                             no_dewarp=True)
+    assert fields["name"] and "ALEX" in fields["name"].upper()
+    assert fields["nik"]
+    assert len(fields["nik"]) == 16
+    assert fields["nik"].startswith("12")
+    assert fields["nik"].endswith("0003")

@@ -4,7 +4,7 @@ import os
 import cv2
 
 from core.ktp import dewarp_card
-from core.ktp_ocr import extract_fields, extract_text, find_tessdata, find_tesseract
+from core.ktp_ocr import extract_fields, extract_text, find_tessdata, find_tesseract, read_ktp_fields
 
 
 def main():
@@ -33,7 +33,8 @@ def main():
 
     source = dewarp_card(img)[0] if not args.no_dewarp else img
     text = extract_text(source, tesseract_cmd=tess, tessdata_dir=tessdata, lang=args.lang)
-    fields = extract_fields(text, image=source, tesseract_cmd=tess, tessdata_dir=tessdata, lang=args.lang)
+    fields = read_ktp_fields(img, tesseract_cmd=tess, tessdata_dir=tessdata,
+                             lang=args.lang, no_dewarp=args.no_dewarp)
     print(f"NIK : {fields['nik'] or 'not found'}")
     print(f"Name: {fields['name'] or 'not found'}")
     print("--- raw text (trimmed) ---")

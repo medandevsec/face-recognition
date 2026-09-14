@@ -9,10 +9,12 @@ from core.detector import detect_faces
 from core.ktp import dewarp_card, extract_face_region
 from core.ktp_ocr import extract_fields, extract_text, find_tesseract
 
+MIN_CROP_SHARPNESS = 30  # Laplacian variance; blurrier aligned crops are dropped
+
 def mask_nik(nik):
     return f"{nik[:2]}xx-xxxx-{nik[-4:]}"
 
-def _finalize_registration(nik, name):
+def _finalize_registration(nik, name, threshold=None):
     """Recompute the mean embedding from the NIK's photo folder and save it."""
     person_dir = os.path.join(FACES_DIR, nik)
     embedding = mean_embedding(person_dir)
@@ -23,13 +25,29 @@ def _finalize_registration(nik, name):
     meta = {"embedding": embedding, "samples": len(os.listdir(person_dir))}
     if name:
         meta["name"] = name
+    if threshold is not None:
+        meta["threshold"] = threshold
     embeddings[nik] = meta
     save_embeddings(embeddings)
     print(f"registered NIK {mask_nik(nik)} ({len(os.listdir(person_dir))} sample(s))"
           + (f", name: {name}" if name else ""))
     return True
 
-def register_from_ktp(nik, image_path, name=None):
+def _ktp_view_crops(image, face):
+    """Several aligned 112x112 views of the KTP face from ONE photo so the mean
+    embedding is less sensitive to pose/skew: base alignment, small rotation and
+    scale jitter, plus an alignment from a 2x-upscaled frame (more source pixels)."""
+    base = align_face(image, face)
+    crops = [base]
+    for deg, scale in ((-3, 1.0), (3, 1.0), (0, 0.9), (0, 1.1)):
+        matrix = cv2.getRotationMatrix2D((56.0, 56.0), deg, scale)
+        crops.append(cv2.warpAffine(base, matrix, (112, 112), borderValue=0.0))
+    big = cv2.resize(image, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+    f2 = [v * 2.0 for v in face]
+    crops.append(align_face(big, f2))
+    return crops
+
+def register_from_ktp(nik, image_path, name=None, threshold=None):
     if not re.fullmatch(r"\d{16}", nik):
         print("invalid NIK: must be exactly 16 digits, e.g. 3273012501900001")
         return False
@@ -39,22 +57,38 @@ def register_from_ktp(nik, image_path, name=None):
         return False
 
     warped, dewarped = dewarp_card(img)
-    face = extract_face_region(warped, dewarped=dewarped)
-    if face is None:
+    candidates = []
+    for source, label in ((warped, "dewarped card"), (img, "original photo")):
+        face = extract_face_region(source, dewarped=label == "dewarped card")
+        if face is not None:
+            candidates.append((source, face, label))
+    if not candidates:
         print("no face found in KTP image, try a clearer scan/photo")
         return False
 
-    aligned = align_face(warped, face)
+    crops = []
+    for source, face, label in candidates:
+        for crop in _ktp_view_crops(source, face):
+            sharpness = cv2.Laplacian(crop, cv2.CV_64F).var()
+            if sharpness >= MIN_CROP_SHARPNESS:
+                crops.append((crop, sharpness, label))
+    if not crops:
+        print("no usable (sharp) face crop extracted from the KTP image")
+        return False
+
     person_dir = os.path.join(FACES_DIR, nik)
     os.makedirs(person_dir, exist_ok=True)
-    count = len(os.listdir(person_dir))
-    cv2.imwrite(os.path.join(person_dir, f"{count}.jpg"), aligned)
+    for fname in os.listdir(person_dir):
+        os.remove(os.path.join(person_dir, fname))
+    for i, (crop, sharpness, label) in enumerate(sorted(crops, key=lambda c: -c[1])):
+        cv2.imwrite(os.path.join(person_dir, f"{i}.jpg"), crop)
 
-    print(f"registered NIK {mask_nik(nik)} from KTP (card dewarped: {dewarped})"
+    print(f"registered NIK {mask_nik(nik)} from KTP ({len(crops)} views;"
+          f" dewarped: {dewarped}, best sharpness {max(s for _, s, _ in crops):.0f})"
           + (f", name: {name}" if name else ""))
-    return _finalize_registration(nik, name)
+    return _finalize_registration(nik, name, threshold=threshold)
 
-def register_from_camera(nik, n, source=0, name=None, interval=2.0):
+def register_from_camera(nik, n, source=0, name=None, interval=2.0, threshold=None):
     """Capture n live webcam frames of the holder and register them under the NIK."""
     if not re.fullmatch(r"\d{16}", nik):
         print("invalid NIK: must be exactly 16 digits, e.g. 3273012501900001")
@@ -106,7 +140,7 @@ def register_from_camera(nik, n, source=0, name=None, interval=2.0):
     if saved == 0:
         print("no usable samples captured")
         return False
-    return _finalize_registration(nik, name)
+    return _finalize_registration(nik, name, threshold=threshold)
 
 def main():
     parser = argparse.ArgumentParser(description="Register a person's face from a KTP photo, keyed by NIK")
@@ -123,6 +157,9 @@ def main():
     parser.add_argument("--interval", type=float, default=2.0,
                         help="seconds between captured samples (default 2)")
     parser.add_argument("--name", default=None, help="display name stored with the registration")
+    parser.add_argument("--threshold", type=float, default=None,
+                        help="optional per-embedding cosine threshold (0..1); "
+                             "used instead of the global default in main.py")
     args = parser.parse_args()
 
     nik = args.nik
@@ -147,9 +184,10 @@ def main():
         sys.exit(1)
 
     if args.capture > 0:
-        register_from_camera(nik, args.capture, source=args.source, name=name, interval=args.interval)
+        register_from_camera(nik, args.capture, source=args.source, name=name,
+                             interval=args.interval, threshold=args.threshold)
     else:
-        register_from_ktp(nik, args.ktp_image, name=name)
+        register_from_ktp(nik, args.ktp_image, name=name, threshold=args.threshold)
 
 if __name__ == "__main__":
     main()
