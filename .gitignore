@@ -4,6 +4,9 @@ __pycache__/
 models/*.onnx
 output.jpg
 *.mp4
+evidence/
+data/test_*.jpg
+ktps/KTPALEX.jpg
 # orang asli yang diregistrasi khusus untuk dipakai lokal, TIDAK ikut repo
 data/faces/1277060607860003/
 data/personal_info.csv

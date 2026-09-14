@@ -1,7 +1,7 @@
 # Face Recognition
 
 Face recognition with a jarvis-style dot overlay. OpenCV (**YuNet**) finds faces,
-onsnxruntime runs **AdaFace** (ONNX, MIT license) for 512-d face embeddings.
+onnxruntime runs **AdaFace** (ONNX, MIT license) for 512-d face embeddings.
 No dlib, no cmake.
 
 ## Setup
@@ -45,13 +45,30 @@ Known face = cyan box + jarvis dots + name tag. The borderless identity text
 roster, with the NIK masked (`12xx-xxxx-0003`). Unknown = red box.
 Press `q` to quit (webcam/video mode).
 
-## 2021 KTP Photo – Sample Test
+The webcam runs at 1280x720, and distant/small faces (<120 px wide) are aligned
+from a 2x upscaled frame so the 112x112 crop keeps more pixels. The identity
+panel only appears after the same NIK matches consistently (~3 of the last 30
+frames) to suppress flicker from strangers passing by. `--debug` prints the live
+similarity of every detected face.
 
-A 2021 KTP (Indonesian ID card) photo used as a sample test image. The recognition
-pipeline registers the holder's face under the NIK and displays a cyan box + name
-tag + identity text (NIK / NAME / ADDRESS / MATCH) in the live view.
+## KTP Photo 15 Years Ago – Sample Test
 
-![2021 KTP photo sample test](docs/uji-sampel-ktp-2021.png)
+The sample KTP uses a photo taken roughly **15 years ago**. Because the face has
+aged and the ID photo is low-resolution, a live-webcam match against this
+KTP-only template typically scores in the **55–75% similarity range** — moderate
+scores are expected, not near-100%.
+
+For the best live-camera accuracy, add current-webcam samples after registering
+from the KTP:
+
+```
+python ktp_register.py <NIK> --capture 10 --name "A Real Person"
+```
+
+Each sample is embedded and averaged with the existing template (such samples
+stay gitignored — see *Keeping real people out of the repo*).
+
+![live recognition screenshot](docs/uji-live-kamera.jpg)
 
 ## Register from an Indonesian ID card (KTP)
 
@@ -61,10 +78,14 @@ python ktp_register.py 3273011501900001 ktp_scan.jpg
 
 Pipeline: detects the card corners, warps it flat (perspective correction),
 extracts the card holder's face, and registers it under the holder's **NIK**
-(validated as exactly 16 digits). Face selection picks the largest face and
-biases toward the holder's photo (right half of a dewarped card, vertically
-centered); if no face is found registration fails with a clear message. When the
-card corners are not detected the photo is used as-is (a flat scan still works).
+(validated as exactly 16 digits). The face is embedded from several aligned
+views of the same photo (warped card + original + slight rotation/scale jitter +
+2x upscaled alignment), quality-filtered by sharpness and averaged into one
+template — so a single photo yields a more robust registration. Face selection
+picks the largest face and biases toward the holder's photo (right half of a
+dewarped card, vertically centered); if no face is found registration fails with
+a clear message. When the card corners are not detected the photo is used as-is
+(a flat scan still works).
 
 ### Auto-read NIK / name with OCR (optional)
 
@@ -78,8 +99,11 @@ python ktp_register.py --ocr ktp_scan.jpg
 `python ktp_ocr.py ktp_scan.jpg` prints the raw extracted fields for inspection.
 Tesseract is detected automatically on Windows/Linux; override with
 `--tesseract-cmd` / `--tessdata-dir`. Indonesian (`ind`) is used when the
-traineddata file is available, otherwise English. NIK digits are re-OCR'd with a
-digits-only whitelist for reliability — the 16-digit NIK is the critical field.
+traineddata file is available, otherwise English. NIK digits are re-OCR'd from
+the original photo region (digits-only whitelist, several magnifications) and
+reconstructed against the card date / NIK patterns, so a garbled line like
+`NIK ; Le? ?Ob0b0?7a8b0003` still yields `1277060607860003`. The name line is
+parsed with a tolerant label matcher (`Nema - ALEX SIREGAR,S.KOM` works).
 
 Instead of a scan, capture fresh samples from the webcam (recording a person who
 is already present):
@@ -118,8 +142,26 @@ detected** (eye-area brightness impulse while the face is steady), so a printed
 photo of a KTP cannot pass. For cameras with poor eyelid detail, `--motion-only`
 falls back to nose-tracking movement instead. Natural blinks don't break the
 streak — brief interruptions only decay it, while a clearly different person
-hard-resets it. Tune strictness with `--threshold` (default 0.45). Options:
+hard-resets it. Tune strictness with `--threshold` (default 0.40). Options:
 `--no-show` for headless runs, press `q` to quit.
+
+## Scan CCTV / recorded video for registered people
+
+```
+python tools/scan_cctv.py --source cctv.mp4          # recorded video
+python tools/scan_cctv.py --source rtsp://.../stream # live RTSP
+python tools/scan_cctv.py --source 0                 # local webcam
+python tools/scan_cctv.py --source ktps/A.jpg        # single-image quick check
+```
+
+Every detected face is tracked across frames and the **sharpest matching frame
+per appearance** is picked; a detection requires the face to persist for a few
+frames. When a track clears the threshold, the identity is printed with a
+timestamp plus a summary, and evidence snapshots (face patch, aligned 112x112,
+annotated frame) are saved under `evidence/<NIK>/` (add `--evidence-dir`).
+Faces smaller than `--min-face` px (default 60, i.e. distant/PTZ shots) are
+skipped because embedding them is unreliable; `--debug` prints the per-frame
+similarity.
 
 ## Reuse for a new client
 
@@ -162,10 +204,12 @@ the repo out to a new client.
 
 ## Notes
 
-- `COSINE_THRESHOLD` in main.py (0.45) = strictness. Similarity is a cosine
+- `COSINE_THRESHOLD` in main.py (0.40) = strictness. Similarity is a cosine
   score (~1 for the same person, below 0 for different people) — higher
   threshold = stricter match. Pass `--threshold 0.7`
-  on the CLI (main.py and verify.py) instead of editing code.
+  on the CLI (main.py, verify.py, tools/scan_cctv.py) instead of editing code.
+  A per-embedding `threshold` stored in `data/embeddings.json` (set via
+  `ktp_register.py --threshold`) overrides the global default for that NIK.
 - Accuracy improves a lot with 3-5 photos per person vs just 1.
 - YuNet + AdaFace handle odd angles and low light far better than a Haar/LBPH
   pipeline, and need only a few hundred MB of ONNX models downloaded once.
